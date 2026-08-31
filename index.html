@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Geometry Rush</title>
+    <meta name="description" content="Geometry Rush - Fast-paced precision 2D rhythm action platformer with 60Hz physics, custom skins, five handcrafted levels, and dynamic synth audio." />
+    <meta property="og:title" content="Geometry Rush" />
+    <meta property="og:description" content="Geometry Rush - Fast-paced precision 2D rhythm action platformer with 60Hz physics, custom skins, five handcrafted levels, and dynamic synth audio." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        function isCrossOriginError(msg) {
+          if (!msg) return false;
+          var str = typeof msg === 'string' ? msg : (msg.message || (msg.reason && msg.reason.message) || msg.toString() || '');
+          return str.indexOf('cross-origin') !== -1 ||
+                 str.indexOf('Blocked a frame') !== -1 ||
+                 str.indexOf('SecurityError') !== -1 ||
+                 str.indexOf('$$typeof') !== -1 ||
+                 str.indexOf('Protocols, domains, and ports must match') !== -1;
+        }
+
+        var origOnError = window.onerror;
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+          if (isCrossOriginError(msg) || (error && isCrossOriginError(error.message))) {
+            return true;
+          }
+          if (origOnError) return origOnError.apply(this, arguments);
+          return false;
+        };
+
+        window.addEventListener('error', function(event) {
+          if (isCrossOriginError(event.message) || (event.error && isCrossOriginError(event.error.message))) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isCrossOriginError(event.reason)) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix Rush Engine",
+  "description": "Rush Engine - Modular, high-performance 2D browser game engine foundation with fixed timestep loop, canvas renderer, high DPI support, and scene management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
