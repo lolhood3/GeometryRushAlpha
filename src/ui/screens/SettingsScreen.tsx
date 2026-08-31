@@ -504,13 +504,13 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                 </div>
 
                 {/* Haptic Feedback (Vibration) Toggle */}
-                <div className="space-y-3 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
+                <div className="space-y-3 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-3.5 sm:p-4">
+                  <div className="flex items-start sm:items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                         <span className="text-sm font-bold text-white">Haptic Feedback</span>
                         <span
-                          className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold ${
+                          className={`rounded-md px-1.5 py-0.5 font-mono text-[9px] sm:text-[10px] font-bold ${
                             Haptics.isSupported()
                               ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                               : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
@@ -519,21 +519,23 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                           {Haptics.isSupported() ? 'Hardware Supported' : 'Simulated / Not Detected'}
                         </span>
                       </div>
-                      <div className="text-xs text-neutral-400">
+                      <div className="text-xs text-neutral-400 mt-0.5">
                         Physical tactile vibration for jumps, landings, crashes & menu interactions
                       </div>
                     </div>
-                    <ToggleSwitch
-                      id="toggle-haptics"
-                      checked={settings.hapticsEnabled}
-                      onChange={() => {
-                        const nextVal = !settings.hapticsEnabled;
-                        updateSetting('hapticsEnabled', nextVal);
-                        if (nextVal) {
-                          Haptics.play('light');
-                        }
-                      }}
-                    />
+                    <div className="shrink-0 pt-0.5 sm:pt-0">
+                      <ToggleSwitch
+                        id="toggle-haptics"
+                        checked={settings.hapticsEnabled}
+                        onChange={() => {
+                          const nextVal = !settings.hapticsEnabled;
+                          updateSetting('hapticsEnabled', nextVal);
+                          if (nextVal) {
+                            Haptics.play('light');
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
 
                   {/* Haptics Intensity Level Selector */}
@@ -542,7 +544,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                       <span>Haptic Intensity</span>
                       <span className="font-mono text-[#00E5FF] capitalize">{settings.hapticsIntensity}</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                       {(['low', 'medium', 'high'] as HapticIntensity[]).map((intensity) => (
                         <button
                           key={intensity}
@@ -555,7 +557,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                             else if (intensity === 'medium') Haptics.play('light');
                             else Haptics.play('heavy');
                           }}
-                          className={`rounded-xl py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                          className={`rounded-xl py-2 sm:py-2.5 min-h-[38px] sm:min-h-[44px] text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center ${
                             !settings.hapticsEnabled
                               ? 'opacity-40 cursor-not-allowed bg-neutral-800/50 text-neutral-500 border border-neutral-800'
                               : settings.hapticsIntensity === intensity

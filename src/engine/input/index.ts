@@ -42,4 +42,5 @@ export interface IInputManager {
 }
 
 export * from './InputManager.ts';
+export * from './HapticsManager.ts';
 
