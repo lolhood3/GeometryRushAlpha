@@ -15,6 +15,9 @@ import { LevelSelectScreen } from './screens/LevelSelectScreen.tsx';
 import { SkinsScreen } from './screens/SkinsScreen.tsx';
 import { SettingsScreen } from './screens/SettingsScreen.tsx';
 import { CreditsScreen } from './screens/CreditsScreen.tsx';
+import { UpdatesScreen } from './screens/UpdatesScreen.tsx';
+import { WhatsNewModal } from './components/WhatsNewModal.tsx';
+import { UpdateManager } from '../game/updates/updateManager.ts';
 import { GameplayHUD } from './screens/GameplayHUD.tsx';
 import { PauseMenu } from './screens/PauseMenu.tsx';
 import { LevelCompleteScreen } from './screens/LevelCompleteScreen.tsx';
@@ -26,6 +29,7 @@ export type GameScreen =
   | 'skins'
   | 'settings'
   | 'credits'
+  | 'updates'
   | 'gameplay'
   | 'pause'
   | 'level_complete';
@@ -47,8 +51,11 @@ export function GameOverlay({ isEngineReady }: GameOverlayProps) {
   // Primary Navigation State (Defaults strictly to SPLASH)
   const [currentScreen, setCurrentScreen] = useState<GameScreen>('splash');
   const previousScreenRef = useRef<GameScreen>('main_menu');
+  const [selectedUpdateId, setSelectedUpdateId] = useState<string | undefined>(undefined);
+  const [showWhatsNew, setShowWhatsNew] = useState<boolean>(false);
 
   const gameState = GameStateManager.getInstance();
+  const updateManager = UpdateManager.getInstance();
   const [showDebugOverlay, setShowDebugOverlay] = useState<boolean>(() => gameState.getSettings().showCrossPlatformDebug);
 
   // Live Gameplay Metrics polled from PlayableScene
@@ -173,6 +180,9 @@ export function GameOverlay({ isEngineReady }: GameOverlayProps) {
   // 1. Splash -> Main Menu
   const handleSplashEnter = () => {
     setCurrentScreen('main_menu');
+    if (updateManager.shouldShowWhatsNew()) {
+      setShowWhatsNew(true);
+    }
   };
 
   // 2. Main Menu: Play (Continues from highest unlocked level)
@@ -228,6 +238,14 @@ export function GameOverlay({ isEngineReady }: GameOverlayProps) {
     const scene = getActiveScene();
     if (scene) scene.pause();
     setCurrentScreen('credits');
+  };
+
+  // 8b. Main Menu -> Updates & News
+  const handleOpenUpdates = (updateId?: string) => {
+    const scene = getActiveScene();
+    if (scene) scene.pause();
+    setSelectedUpdateId(updateId);
+    setCurrentScreen('updates');
   };
 
   // 9. Return to Main Menu
@@ -320,6 +338,7 @@ export function GameOverlay({ isEngineReady }: GameOverlayProps) {
               onOpenSettings={() => handleOpenSettings('main_menu')}
               onOpenSkins={handleOpenSkins}
               onOpenCredits={handleOpenCredits}
+              onOpenUpdates={() => handleOpenUpdates()}
               onExit={handleExitToSplash}
             />
           </motion.div>
@@ -381,6 +400,23 @@ export function GameOverlay({ isEngineReady }: GameOverlayProps) {
             className="h-full w-full pointer-events-auto"
           >
             <CreditsScreen onBack={handleReturnToMainMenu} />
+          </motion.div>
+        )}
+
+        {/* 6b. UPDATES & NEWS SCREEN */}
+        {currentScreen === 'updates' && (
+          <motion.div
+            key="screen-updates"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.2 }}
+            className="h-full w-full pointer-events-auto"
+          >
+            <UpdatesScreen
+              initialSelectedUpdateId={selectedUpdateId}
+              onBack={handleReturnToMainMenu}
+            />
           </motion.div>
         )}
 
@@ -447,6 +483,17 @@ export function GameOverlay({ isEngineReady }: GameOverlayProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* "What's New" Release Announcement Popup */}
+      {showWhatsNew && currentScreen === 'main_menu' && (
+        <WhatsNewModal
+          onClose={() => setShowWhatsNew(false)}
+          onViewUpdate={(updateId) => {
+            setShowWhatsNew(false);
+            handleOpenUpdates(updateId);
+          }}
+        />
+      )}
 
       {/* Portrait Mode Landscape Enforcer Overlay (Mobile & Tablets) */}
       <RotateDeviceOverlay onOrientationChange={handleOrientationChange} />

@@ -10,6 +10,7 @@ import { Goal } from '../entities/Goal.ts';
 import { TUTORIAL_LEVEL, ALL_LEVELS, type LevelData } from '../levels/LevelData.ts';
 import { Vector2 } from '../../engine/utils/Vector2.ts';
 import { SoundManager } from '../../engine/audio/SoundManager.ts';
+import { Haptics } from '../../engine/haptics/HapticsManager.ts';
 import { GameStateManager } from '../state/GameState.ts';
 
 /**
@@ -188,6 +189,7 @@ export class PlayableScene implements IScene {
     }
     this.deathRestartTimer = 0.28; // Total death duration ~0.36s (well under 0.5s)
 
+    Haptics.play('heavy');
     SoundManager.getInstance().playDeath();
   }
 
@@ -198,6 +200,7 @@ export class PlayableScene implements IScene {
     if (this.isVictory) return;
     this.isVictory = true;
 
+    Haptics.play('success');
     SoundManager.getInstance().playVictory();
 
     // Spawn celebratory victory particles around goal

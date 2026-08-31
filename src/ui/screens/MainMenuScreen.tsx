@@ -12,10 +12,12 @@ import {
   ChevronRight,
   ShieldAlert,
   Zap,
+  Newspaper,
 } from 'lucide-react';
 import { GameStateManager } from '../../game/state/GameState.ts';
 import { ALL_LEVELS } from '../../game/levels/LevelData.ts';
 import { SoundManager } from '../../engine/audio/SoundManager.ts';
+import { UpdateManager } from '../../game/updates/updateManager.ts';
 import { MenuBackground } from '../components/MenuBackground.tsx';
 import { MenuButton } from '../components/MenuButton.tsx';
 
@@ -25,6 +27,7 @@ interface MainMenuScreenProps {
   onOpenSettings: () => void;
   onOpenSkins: () => void;
   onOpenCredits: () => void;
+  onOpenUpdates: () => void;
   onExit: () => void;
 }
 
@@ -34,13 +37,16 @@ export function MainMenuScreen({
   onOpenSettings,
   onOpenSkins,
   onOpenCredits,
+  onOpenUpdates,
   onExit,
 }: MainMenuScreenProps) {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const gameState = GameStateManager.getInstance();
+  const updateManager = UpdateManager.getInstance();
   const highestLevel = gameState.getHighestUnlockedLevel();
   const completedCount = gameState.getCompletedLevelsCount();
   const equippedSkin = gameState.getEquippedSkin();
+  const unreadCount = updateManager.getUnreadCount();
 
   return (
     <div
@@ -71,36 +77,68 @@ export function MainMenuScreen({
           </span>
         </div>
 
-        {/* Quick Skin Customization Chip */}
-        <motion.button
-          id="menu-quick-skin-btn"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          onMouseEnter={() => SoundManager.getInstance().playHover()}
-          onClick={() => {
-            SoundManager.getInstance().playClick();
-            onOpenSkins();
-          }}
-          onPointerUp={(e) => {
-            if (e.pointerType === 'touch') {
+        {/* Right Top Bar Actions: Updates Badge + Quick Skin Customization Chip */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Updates / News Top Quick Badge */}
+          <motion.button
+            id="menu-quick-updates-btn"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => SoundManager.getInstance().playHover()}
+            onClick={() => {
+              SoundManager.getInstance().playClick();
+              onOpenUpdates();
+            }}
+            onPointerUp={(e) => {
+              if (e.pointerType === 'touch') {
+                SoundManager.getInstance().playClick();
+                onOpenUpdates();
+              }
+            }}
+            className="group relative flex items-center gap-2 rounded-2xl border border-neutral-800/90 bg-neutral-900/80 px-3 py-1.5 sm:px-3.5 sm:py-2 shadow-lg backdrop-blur-md transition-all hover:border-[#00E5FF]/50 hover:bg-neutral-800 hover:shadow-[0_0_20px_rgba(0,229,255,0.2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00E5FF] cursor-pointer"
+          >
+            <Newspaper className="h-4 w-4 text-[#00E5FF]" />
+            <span className="text-xs font-bold tracking-wide text-neutral-200 group-hover:text-white hidden xs:inline">
+              News
+            </span>
+            {unreadCount > 0 && (
+              <span className="flex items-center justify-center rounded-full bg-[#00FF88] px-1.5 py-0.2 text-[9px] font-black text-neutral-950 shadow-[0_0_8px_#00FF88]">
+                NEW
+              </span>
+            )}
+          </motion.button>
+
+          {/* Quick Skin Customization Chip */}
+          <motion.button
+            id="menu-quick-skin-btn"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onMouseEnter={() => SoundManager.getInstance().playHover()}
+            onClick={() => {
               SoundManager.getInstance().playClick();
               onOpenSkins();
-            }
-          }}
-          className="group flex items-center gap-2.5 rounded-2xl border border-neutral-800/90 bg-neutral-900/80 px-3.5 py-1.5 sm:px-4 sm:py-2 shadow-lg backdrop-blur-md transition-all hover:border-[#BF5AF2]/50 hover:bg-neutral-800 hover:shadow-[0_0_20px_rgba(191,90,242,0.2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BF5AF2] cursor-pointer"
-        >
-          <div
-            className="h-4 w-4 rounded-md border shadow-sm transition-transform group-hover:rotate-12"
-            style={{
-              backgroundColor: equippedSkin.primaryColor,
-              borderColor: equippedSkin.strokeColor,
-              boxShadow: `0 0 10px ${equippedSkin.primaryColor}88`,
             }}
-          />
-          <span className="text-xs font-bold tracking-wide text-neutral-200 group-hover:text-white">
-            {equippedSkin.name}
-          </span>
-        </motion.button>
+            onPointerUp={(e) => {
+              if (e.pointerType === 'touch') {
+                SoundManager.getInstance().playClick();
+                onOpenSkins();
+              }
+            }}
+            className="group flex items-center gap-2.5 rounded-2xl border border-neutral-800/90 bg-neutral-900/80 px-3.5 py-1.5 sm:px-4 sm:py-2 shadow-lg backdrop-blur-md transition-all hover:border-[#BF5AF2]/50 hover:bg-neutral-800 hover:shadow-[0_0_20px_rgba(191,90,242,0.2)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#BF5AF2] cursor-pointer"
+          >
+            <div
+              className="h-4 w-4 rounded-md border shadow-sm transition-transform group-hover:rotate-12"
+              style={{
+                backgroundColor: equippedSkin.primaryColor,
+                borderColor: equippedSkin.strokeColor,
+                boxShadow: `0 0 10px ${equippedSkin.primaryColor}88`,
+              }}
+            />
+            <span className="text-xs font-bold tracking-wide text-neutral-200 group-hover:text-white">
+              {equippedSkin.name}
+            </span>
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* DESKTOP & TABLET LANDSCAPE LAYOUT (Visible when viewport height >= 521px) */}
@@ -201,6 +239,34 @@ export function MainMenuScreen({
               Settings
             </MenuButton>
 
+            {/* Updates & News */}
+            <MenuButton
+              id="menu-btn-updates"
+              variant="secondary"
+              size="lg"
+              onClick={onOpenUpdates}
+              icon={
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <Newspaper className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 rounded-full bg-[#00FF88] shadow-[0_0_8px_#00FF88]" />
+                  )}
+                </div>
+              }
+              iconRight={<ChevronRight className="h-4 w-4 opacity-70" />}
+              subtitle={unreadCount > 0 ? "New Update Available (UPDATE 1.1)" : "Patch Notes & System Bulletins"}
+              className="w-full text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span>Updates & News</span>
+                {unreadCount > 0 && (
+                  <span className="rounded-full bg-[#00FF88] px-1.5 py-0.2 text-[9px] font-black text-neutral-950 shadow-[0_0_8px_#00FF88]">
+                    NEW
+                  </span>
+                )}
+              </div>
+            </MenuButton>
+
             {/* Credits */}
             <MenuButton
               id="menu-btn-credits"
@@ -214,7 +280,7 @@ export function MainMenuScreen({
               }
               iconRight={<ChevronRight className="h-4 w-4 opacity-70" />}
               subtitle="Developed by Ankan Barik"
-              className="w-full text-left"
+              className="w-full text-left col-span-1 sm:col-span-2"
             >
               Credits
             </MenuButton>
@@ -322,18 +388,44 @@ export function MainMenuScreen({
           </MenuButton>
 
           <MenuButton
-            id="menu-btn-credits-mobile"
+            id="menu-btn-updates-mobile"
             variant="secondary"
             size="sm"
-            onClick={onOpenCredits}
-            icon={<Info className="h-4 w-4 text-amber-400" />}
-            subtitle="Credits"
+            onClick={onOpenUpdates}
+            icon={
+              <div className="relative flex items-center justify-center">
+                <Newspaper className="h-4 w-4 text-[#00FF88]" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-[#00FF88] shadow-[0_0_6px_#00FF88]" />
+                )}
+              </div>
+            }
+            subtitle={unreadCount > 0 ? "UPDATE 1.1" : "Logs"}
             className="w-full text-left py-1.5 min-h-[44px]"
           >
-            Credits
+            <div className="flex items-center gap-1.5">
+              <span>News</span>
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-[#00FF88] px-1 py-0.2 text-[8px] font-black text-neutral-950">
+                  NEW
+                </span>
+              )}
+            </div>
           </MenuButton>
 
-          <div className="col-span-2">
+          <div className="col-span-2 grid grid-cols-2 gap-1.5">
+            <MenuButton
+              id="menu-btn-credits-mobile"
+              variant="secondary"
+              size="sm"
+              onClick={onOpenCredits}
+              icon={<Info className="h-3.5 w-3.5 text-amber-400" />}
+              subtitle="Credits"
+              className="w-full text-left py-1 min-h-[38px] text-xs"
+            >
+              Credits
+            </MenuButton>
+
             <MenuButton
               id="menu-btn-exit-mobile"
               variant="danger"
@@ -341,9 +433,9 @@ export function MainMenuScreen({
               soundType="back"
               onClick={() => setShowExitConfirm(true)}
               icon={<LogOut className="h-3.5 w-3.5" />}
-              className="w-full justify-center text-xs py-1.5 min-h-[40px]"
+              className="w-full justify-center text-xs py-1 min-h-[38px]"
             >
-              Exit to Title
+              Exit
             </MenuButton>
           </div>
         </div>

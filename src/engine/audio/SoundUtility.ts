@@ -1,4 +1,5 @@
 import { SoundManager } from './SoundManager.ts';
+import { Haptics } from '../haptics/HapticsManager.ts';
 
 export type MenuSoundType = 'hover' | 'click' | 'confirm' | 'back' | 'error' | 'toggle' | 'tick';
 
@@ -7,7 +8,7 @@ export interface SoundCueOptions {
   pitchVariation?: number;
   /** Volume multiplier (0 to 1) */
   volume?: number;
-  /** Trigger brief physical haptic feedback on supported touch devices */
+  /** Trigger physical haptic feedback on supported touch devices */
   haptic?: boolean;
 }
 
@@ -61,12 +62,8 @@ export class SoundUtility {
     if (now - this.lastClickTimestamp < 20) return;
     this.lastClickTimestamp = now;
 
-    if (options?.haptic !== false && typeof navigator !== 'undefined' && navigator.vibrate) {
-      try {
-        navigator.vibrate(6);
-      } catch {
-        // Ignore haptic errors on unsupported devices
-      }
+    if (options?.haptic !== false) {
+      Haptics.play('selection');
     }
 
     SoundManager.getInstance().playClick();
@@ -77,12 +74,8 @@ export class SoundUtility {
    * (e.g. Starting a Level, Equipping a Skin, Entering Game).
    */
   public static confirm(options?: SoundCueOptions): void {
-    if (options?.haptic !== false && typeof navigator !== 'undefined' && navigator.vibrate) {
-      try {
-        navigator.vibrate([8, 30, 12]);
-      } catch {
-        // Ignore haptic errors
-      }
+    if (options?.haptic !== false) {
+      Haptics.play('light');
     }
 
     SoundManager.getInstance().playConfirm();
@@ -92,6 +85,7 @@ export class SoundUtility {
    * Descending navigation back/cancel sound.
    */
   public static back(): void {
+    Haptics.play('selection');
     SoundManager.getInstance().playBack();
   }
 
@@ -99,13 +93,7 @@ export class SoundUtility {
    * Low cyber warning buzz for invalid actions or locked selections.
    */
   public static error(): void {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      try {
-        navigator.vibrate(25);
-      } catch {
-        // Ignore haptic errors
-      }
-    }
+    Haptics.play('error');
     SoundManager.getInstance().playError();
   }
 
@@ -113,6 +101,7 @@ export class SoundUtility {
    * Dual-tone acoustic feedback for toggling checkboxes or switch states.
    */
   public static toggle(isOn: boolean): void {
+    Haptics.play('selection');
     SoundManager.getInstance().playToggle(isOn);
   }
 

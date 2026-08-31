@@ -27,6 +27,7 @@ import {
   type GameSettings,
   type GraphicsQuality,
 } from '../../game/state/GameState.ts';
+import { Haptics, type HapticIntensity } from '../../engine/haptics/HapticsManager.ts';
 import { SoundManager } from '../../engine/audio/SoundManager.ts';
 import { SoundUtility } from '../../engine/audio/SoundUtility.ts';
 import { MenuBackground } from '../components/MenuBackground.tsx';
@@ -498,8 +499,75 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                 className="space-y-5"
               >
                 <div className="border-b border-neutral-800 pb-3">
-                  <h2 className="text-base font-black uppercase tracking-wider text-white">Accessibility</h2>
-                  <p className="text-xs font-mono text-neutral-400">Visual comfort & motion sensitivity options</p>
+                  <h2 className="text-base font-black uppercase tracking-wider text-white">Accessibility & Tactile Feedback</h2>
+                  <p className="text-xs font-mono text-neutral-400">Visual comfort, motion sensitivity & physical haptic feedback</p>
+                </div>
+
+                {/* Haptic Feedback (Vibration) Toggle */}
+                <div className="space-y-3 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">Haptic Feedback</span>
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold ${
+                            Haptics.isSupported()
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                          }`}
+                        >
+                          {Haptics.isSupported() ? 'Hardware Supported' : 'Simulated / Not Detected'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-neutral-400">
+                        Physical tactile vibration for jumps, landings, crashes & menu interactions
+                      </div>
+                    </div>
+                    <ToggleSwitch
+                      id="toggle-haptics"
+                      checked={settings.hapticsEnabled}
+                      onChange={() => {
+                        const nextVal = !settings.hapticsEnabled;
+                        updateSetting('hapticsEnabled', nextVal);
+                        if (nextVal) {
+                          Haptics.play('light');
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Haptics Intensity Level Selector */}
+                  <div className="pt-2 border-t border-neutral-800/80">
+                    <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-neutral-300 mb-2">
+                      <span>Haptic Intensity</span>
+                      <span className="font-mono text-[#00E5FF] capitalize">{settings.hapticsIntensity}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['low', 'medium', 'high'] as HapticIntensity[]).map((intensity) => (
+                        <button
+                          key={intensity}
+                          id={`btn-haptic-intensity-${intensity}`}
+                          disabled={!settings.hapticsEnabled}
+                          onClick={() => {
+                            updateSetting('hapticsIntensity', intensity);
+                            Haptics.setIntensity(intensity);
+                            if (intensity === 'low') Haptics.play('selection');
+                            else if (intensity === 'medium') Haptics.play('light');
+                            else Haptics.play('heavy');
+                          }}
+                          className={`rounded-xl py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                            !settings.hapticsEnabled
+                              ? 'opacity-40 cursor-not-allowed bg-neutral-800/50 text-neutral-500 border border-neutral-800'
+                              : settings.hapticsIntensity === intensity
+                              ? 'bg-[#00E5FF]/20 border border-[#00E5FF] text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.2)]'
+                              : 'bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          {intensity}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Screen Flash Limiter */}

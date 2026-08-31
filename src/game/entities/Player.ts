@@ -3,6 +3,7 @@ import { Rigidbody2D } from '../../engine/physics/Rigidbody2D.ts';
 import { BoxCollider } from '../../engine/physics/BoxCollider.ts';
 import { Vector2 } from '../../engine/utils/Vector2.ts';
 import { SoundManager } from '../../engine/audio/SoundManager.ts';
+import { Haptics } from '../../engine/haptics/HapticsManager.ts';
 import { GameStateManager } from '../state/GameState.ts';
 import type { SkinData } from '../skins/SkinData.ts';
 import type { CanvasRenderer } from '../../engine/graphics/CanvasRenderer.ts';
@@ -196,6 +197,7 @@ export class Player {
     this.coyoteTimer = 0;
     this.jumpBufferTimer = 0;
 
+    Haptics.play('light');
     SoundManager.getInstance().playJump();
 
     // Spawn jump dust particles at base
@@ -396,6 +398,7 @@ export class Player {
     // Spawn landing dust and initiate landing squash on initial touch down
     if (!wasGrounded && this.isGrounded) {
       this.squash = 0.16;
+      Haptics.play('selection');
       SoundManager.getInstance().playLand();
       const bx = this.transform.position.x + this.size / 2;
       const by = this.transform.position.y + this.size;

@@ -1,5 +1,6 @@
 import { ALL_LEVELS, type LevelData } from '../levels/LevelData.ts';
 import { ALL_SKINS, DEFAULT_SKIN_ID, type SkinData, getSkinById } from '../skins/SkinData.ts';
+import { HapticsManager, type HapticIntensity } from '../../engine/haptics/HapticsManager.ts';
 
 export interface LevelProgress {
   completed: boolean;
@@ -16,6 +17,9 @@ export interface GameSettings {
   musicVolume: number;
   sfxVolume: number;
   isMuted: boolean;
+  // Haptics & Vibration
+  hapticsEnabled: boolean;
+  hapticsIntensity: HapticIntensity;
   // Graphics
   graphicsQuality: GraphicsQuality;
   particleEffects: boolean;
@@ -47,6 +51,8 @@ export class GameStateManager {
     musicVolume: 0.7,
     sfxVolume: 0.9,
     isMuted: false,
+    hapticsEnabled: true,
+    hapticsIntensity: 'medium',
     graphicsQuality: 'high',
     particleEffects: true,
     screenShake: true,
@@ -62,6 +68,7 @@ export class GameStateManager {
 
   private constructor() {
     this.load();
+    this.syncHaptics();
   }
 
   public static getInstance(): GameStateManager {
@@ -69,6 +76,12 @@ export class GameStateManager {
       GameStateManager.instance = new GameStateManager();
     }
     return GameStateManager.instance;
+  }
+
+  private syncHaptics(): void {
+    const haptics = HapticsManager.getInstance();
+    haptics.setEnabled(this.settings.hapticsEnabled);
+    haptics.setIntensity(this.settings.hapticsIntensity);
   }
 
   private load(): void {
@@ -179,6 +192,7 @@ export class GameStateManager {
 
   public updateSettings(partial: Partial<GameSettings>): void {
     this.settings = { ...this.settings, ...partial };
+    this.syncHaptics();
     this.save();
   }
 

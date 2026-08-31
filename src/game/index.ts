@@ -4,3 +4,5 @@ export * from './scenes/PlayableScene.ts';
 export * from './entities/index.ts';
 export * from './levels/index.ts';
 export * from './assets/index.ts';
+export * from './updates/index.ts';
+
