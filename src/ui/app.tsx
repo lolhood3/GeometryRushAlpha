@@ -42,8 +42,9 @@ function Chrome({ accent }: { accent: string }) {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('reduced-motion', s.reducedMotion);
+    root.classList.toggle('high-contrast', s.highContrast);
     root.style.setProperty('--accent', accent);
-  }, [s.reducedMotion, accent]);
+  }, [s.reducedMotion, s.highContrast, accent]);
   return null;
 }
 

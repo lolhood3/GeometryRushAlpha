@@ -1,5 +1,6 @@
 import { LEVEL_IDS } from '../levels/index.ts';
 import { caughtUpNews, sanitizeNews, type NewsState } from '../updates/index.ts';
+import { defaultBindings, sameBindings, sanitizeBindings, type KeyBindings } from './keys.ts';
 
 export type Quality = 'auto' | 'low' | 'medium' | 'high';
 
@@ -21,6 +22,8 @@ export interface Settings {
   reducedMotion: boolean;
   highContrast: boolean;
   haptics: boolean;
+  /** Keyboard bindings. Saves from before 2.2.0 have none and get the defaults. */
+  keys: KeyBindings;
 }
 
 export interface LevelRecord {
@@ -86,7 +89,34 @@ export function defaultSettings(): Settings {
     quality: 'auto', particles: true, shake: true, flashes: true, showFps: false,
     autoRetry: true, showProgress: true, showSync: true,
     reducedMotion: false, highContrast: false, haptics: true,
+    keys: defaultBindings(),
   };
+}
+
+/** The Settings screen's categories and the settings each one owns. Every setting belongs to exactly one. */
+export type SettingsSection = 'audio' | 'video' | 'gameplay' | 'access';
+export const SETTINGS_SECTIONS: Record<SettingsSection, readonly (keyof Settings)[]> = {
+  audio: ['master', 'music', 'sfx', 'muted', 'audioOffsetMs'],
+  video: ['quality', 'particles', 'shake', 'flashes', 'showFps'],
+  gameplay: ['autoRetry', 'showProgress', 'showSync', 'haptics', 'keys'],
+  access: ['reducedMotion', 'highContrast'],
+};
+
+function sameSetting(key: keyof Settings, a: Settings, b: Settings): boolean {
+  return key === 'keys' ? sameBindings(a.keys, b.keys) : a[key] === b[key];
+}
+
+/** Whether every setting of a category still has its default value. */
+export function sectionIsDefault(s: Settings, section: SettingsSection): boolean {
+  const d = defaultSettings();
+  return SETTINGS_SECTIONS[section].every((key) => sameSetting(key, s, d));
+}
+
+/** Just the settings of one category, taken from `from` (for restoring defaults, and for undoing that). */
+export function sectionValues(from: Settings, section: SettingsSection): Partial<Settings> {
+  const out: Partial<Settings> = {};
+  for (const key of SETTINGS_SECTIONS[section]) (out as Record<string, unknown>)[key] = from[key];
+  return out;
 }
 
 export function emptyRecord(): LevelRecord {
@@ -185,6 +215,7 @@ export function sanitizeProfile(raw: unknown, now = Date.now()): Profile {
     d.reducedMotion = bool(s.reducedMotion, d.reducedMotion);
     d.highContrast = bool(s.highContrast, d.highContrast);
     d.haptics = bool(s.haptics, d.haptics);
+    d.keys = sanitizeBindings(s.keys);
   }
   return base;
 }
@@ -250,4 +281,13 @@ export function syncRank(rate: number): SyncRank {
   if (rate >= 0.55) return 'B';
   if (rate >= 0.35) return 'C';
   return 'D';
+}
+
+/**
+ * A sync rate as the whole percentage shown to the player. It rounds down, so
+ * the number can never claim a rank boundary the rate has not reached: 74.6%
+ * reads "74%" beside its B, not "75%".
+ */
+export function syncPercent(rate: number): number {
+  return Math.max(0, Math.min(100, Math.floor(rate * 100 + 1e-9)));
 }

@@ -1,9 +1,9 @@
 import { LEVEL_IDS } from '../levels/index.ts';
 import { LATEST_RELEASE, findRelease, pendingNotice, unreadReleases, type Release } from '../updates/index.ts';
 import { evaluateAchievements } from './achievements.ts';
-import { CHASSIS, PAINTS, TRAILS, isUnlocked, unlockedCosmetics } from './cosmetics.ts';
+import { CHASSIS, PAINTS, TRAILS, isUnlocked, starsEarned, unlockedCosmetics } from './cosmetics.ts';
 import {
-  STORAGE_KEY, defaultProfile, importLegacy, isLevelUnlocked, sanitizeProfile,
+  STORAGE_KEY, completedCount, defaultProfile, importLegacy, isLevelUnlocked, sanitizeProfile, totalShards,
   type Loadout, type Profile, type Settings,
 } from './profile.ts';
 
@@ -44,6 +44,61 @@ export interface RunOutcome {
   unlockedLevel: string | null;
 }
 
+/** Where the save that an import, a reset or a restore replaced is kept. One slot. */
+export const BACKUP_KEY = 'geometry_rush_v2_profile_backup';
+/** Real saves are a few kilobytes; anything far beyond that is not one. */
+export const MAX_SAVE_CHARS = 262144;
+
+/** The handful of numbers that let a player recognise a save. */
+export interface SaveSummary {
+  cleared: number;
+  tracks: number;
+  stars: number;
+  shards: number;
+  achievements: number;
+  attempts: number;
+  playSeconds: number;
+  createdAt: number;
+}
+
+export function summarizeSave(p: Profile): SaveSummary {
+  return {
+    cleared: completedCount(p), tracks: LEVEL_IDS.length, stars: starsEarned(p), shards: totalShards(p),
+    achievements: Object.keys(p.achievements).length, attempts: p.totals.attempts, playSeconds: p.totals.playSeconds, createdAt: p.createdAt,
+  };
+}
+
+/** True when a save holds nothing a player could miss. */
+export function isBlankSave(p: Profile): boolean {
+  return p.totals.attempts === 0 && p.totals.playSeconds === 0 && Object.keys(p.achievements).length === 0 && completedCount(p) === 0;
+}
+
+export type SaveProblem = 'empty' | 'too-large' | 'not-json' | 'not-a-save' | 'other-version';
+export type SaveCheck = { ok: true; profile: Profile; summary: SaveSummary } | { ok: false; problem: SaveProblem };
+
+/** Reads a save file without applying it, so it can be shown to the player before anything is replaced. */
+export function checkSave(json: string): SaveCheck {
+  if (typeof json !== 'string' || json.trim() === '') return { ok: false, problem: 'empty' };
+  if (json.length > MAX_SAVE_CHARS) return { ok: false, problem: 'too-large' };
+  let parsed: unknown;
+  try { parsed = JSON.parse(json); } catch { return { ok: false, problem: 'not-json' }; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { ok: false, problem: 'not-a-save' };
+  const r = parsed as Record<string, unknown>;
+  if (!r.levels || typeof r.levels !== 'object' || !('version' in r)) return { ok: false, problem: 'not-a-save' };
+  if (r.version !== 2) return { ok: false, problem: 'other-version' };
+  const profile = sanitizeProfile(r);
+  evaluateAchievements(profile);
+  return { ok: true, profile, summary: summarizeSave(profile) };
+}
+
+export type RestoreReason = 'import' | 'reset' | 'restore';
+/** The save that was replaced most recently, and why. */
+export interface RestorePoint {
+  at: number;
+  reason: RestoreReason;
+  summary: SaveSummary;
+}
+
 type Listener = () => void;
 
 /**
@@ -57,6 +112,9 @@ export class ProfileStore {
   private readonly storage: KeyValueStore | null;
   private readonly listeners = new Set<Listener>();
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  private point: { info: RestorePoint; profile: Profile } | null | undefined;
+  /** Unlocked as the current attempt began, so the run that follows can still report it. */
+  private early: { achievements: string[]; cosmetics: string[] } = { achievements: [], cosmetics: [] };
 
   constructor(storage: KeyValueStore | null) {
     this.storage = storage;
@@ -70,6 +128,8 @@ export class ProfileStore {
       const raw = s.getItem(STORAGE_KEY);
       if (raw) {
         const p = sanitizeProfile(JSON.parse(raw));
+        // A save whose numbers already meet a requirement is granted it on load, not at the next crash.
+        evaluateAchievements(p);
         this.repairLoadout(p);
         return p;
       }
@@ -182,6 +242,10 @@ export class ProfileStore {
     rec.attempts++;
     p.totals.attempts++;
     if (practice) p.totals.practiceRuns++;
+    // Attempt counts change here, so the achievements that count attempts are checked here too.
+    const before = unlockedCosmetics(p);
+    const achievements = evaluateAchievements(p);
+    this.early = { achievements, cosmetics: achievements.length ? unlockedCosmetics(p).filter((k) => !before.includes(k)) : [] };
     this.profile = { ...p };
     this.changed();
   }
@@ -228,9 +292,10 @@ export class ProfileStore {
       }
     }
 
-    out.achievements = evaluateAchievements(p);
+    out.achievements = [...this.early.achievements, ...evaluateAchievements(p)];
     const after = unlockedCosmetics(p);
-    out.cosmetics = after.filter((k) => !before.includes(k));
+    out.cosmetics = [...this.early.cosmetics, ...after.filter((k) => !before.includes(k))];
+    this.early = { achievements: [], cosmetics: [] };
     if (nextWasLocked && nextId && isLevelUnlocked(p, nextId)) out.unlockedLevel = nextId;
     this.profile = { ...p };
     this.changed();
@@ -241,13 +306,16 @@ export class ProfileStore {
     return JSON.stringify(this.profile);
   }
 
-  /** Replaces the profile with imported data. Throws on unreadable input. */
+  /**
+   * Replaces the profile with imported data. Throws on unreadable input.
+   * The save being replaced is kept as the restore point.
+   */
   importSave(json: string): void {
-    const parsed = JSON.parse(json);
-    if (!parsed || typeof parsed !== 'object' || parsed.version !== 2) throw new Error('Not a Geometry Rush V.2 save');
-    const p = sanitizeProfile(parsed);
-    evaluateAchievements(p);
+    const check = checkSave(json);
+    if (!check.ok) throw new Error(`Not a Geometry Rush V.2 save (${check.problem})`);
+    const p = check.profile;
     this.repairLoadout(p);
+    this.keepRestorePoint('import');
     // What has been read belongs to this player, not to the backup being restored.
     p.news = this.profile.news;
     this.profile = p;
@@ -255,8 +323,12 @@ export class ProfileStore {
     this.flush();
   }
 
-  /** Wipes progress and cosmetics but keeps the player's settings. */
+  /**
+   * Wipes progress and cosmetics but keeps the player's settings.
+   * The save being wiped is kept as the restore point.
+   */
   resetProgress(): void {
+    this.keepRestorePoint('reset');
     const fresh = defaultProfile();
     fresh.settings = this.profile.settings;
     fresh.veteran = this.profile.veteran;
@@ -265,5 +337,66 @@ export class ProfileStore {
     this.profile = fresh;
     this.changed();
     this.flush();
+  }
+
+  /** The save that the last import, reset or restore replaced, if one was kept. */
+  restorePoint(): RestorePoint | null {
+    return this.readPoint()?.info ?? null;
+  }
+
+  private readPoint(): { info: RestorePoint; profile: Profile } | null {
+    if (this.point !== undefined) return this.point;
+    this.point = null;
+    try {
+      const raw = this.storage?.getItem(BACKUP_KEY);
+      if (!raw) return null;
+      const r = JSON.parse(raw) as { at?: unknown; reason?: unknown; profile?: unknown };
+      const check = checkSave(JSON.stringify(r.profile));
+      if (!check.ok) return null;
+      const reason: RestoreReason = r.reason === 'import' || r.reason === 'restore' ? r.reason : 'reset';
+      const at = typeof r.at === 'number' && Number.isFinite(r.at) ? r.at : 0;
+      this.point = { info: { at, reason, summary: check.summary }, profile: check.profile };
+    } catch {
+      /* an unreadable restore point is treated as none */
+    }
+    return this.point;
+  }
+
+  /**
+   * Copies the current save into the restore slot before it is replaced.
+   * A save with nothing in it is not kept, so resetting twice cannot push
+   * real progress out of the slot. Returns whether a copy was written.
+   */
+  private keepRestorePoint(reason: RestoreReason, now = Date.now()): boolean {
+    if (!this.storage || isBlankSave(this.profile)) return false;
+    try {
+      this.storage.setItem(BACKUP_KEY, JSON.stringify({ at: now, reason, profile: this.profile }));
+      this.point = undefined;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Brings back the save in the restore slot. The save it replaces takes its
+   * place, so a restore can itself be undone. Returns false when there is
+   * nothing to restore.
+   */
+  restorePrevious(): boolean {
+    const point = this.readPoint();
+    if (!point) return false;
+    const p = point.profile;
+    this.repairLoadout(p);
+    p.news = this.profile.news;
+    if (!this.keepRestorePoint('restore')) {
+      // Nothing worth keeping in exchange: empty the slot so the same save is not offered twice.
+      try { this.storage?.setItem(BACKUP_KEY, ''); } catch { /* the slot stays as it was */ }
+      this.point = undefined;
+    }
+    this.profile = p;
+    this.changed();
+    this.flush();
+    return true;
   }
 }

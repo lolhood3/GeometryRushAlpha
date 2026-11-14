@@ -1,226 +1,284 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { getSong } from '../../game/music/songs.ts';
-import type { Quality, Settings } from '../../game/progression/profile.ts';
-import { Button, Dialog, ScreenFrame, Segmented, Slider, Toggle } from '../components/controls.tsx';
-import { useApp, useArrowNav, useKey, useProfile } from '../context.ts';
+import {
+  defaultSettings, sectionIsDefault, sectionValues, type Quality, type Settings, type SettingsSection,
+} from '../../game/progression/profile.ts';
+import { Button, FieldText, ScreenFrame, Segmented, Slider, Toggle } from '../components/controls.tsx';
+import { useApp, useArrowNav, useFrame, useGameState, useKey, useProfile } from '../context.ts';
+import { Calibrator, OFFSET_MAX, OFFSET_MIN, formatMs } from './settings/calibrator.tsx';
+import { SaveDataPane } from './settings/data.tsx';
+import { KeyBindingsGroup } from './settings/keys.tsx';
+import { Group, NoticeBar, Row, useNotice, type Notify } from './settings/parts.tsx';
 
-type Section = 'audio' | 'video' | 'gameplay' | 'access' | 'data';
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'audio', label: 'Audio' },
-  { id: 'video', label: 'Video' },
-  { id: 'gameplay', label: 'Gameplay' },
-  { id: 'access', label: 'Accessibility' },
-  { id: 'data', label: 'Save data' },
+type Section = SettingsSection | 'data';
+const SECTIONS: { id: Section; label: string; note: string; blurb: string }[] = [
+  { id: 'audio', label: 'Audio', note: 'Volume · sync', blurb: 'Set the mix, and line the music up with the picture.' },
+  { id: 'video', label: 'Video', note: 'Quality · effects', blurb: 'Trade sharpness and effects for a steadier frame rate.' },
+  { id: 'gameplay', label: 'Gameplay', note: 'Run · HUD · keys', blurb: 'How a run behaves, what the HUD shows, and which keys you play with.' },
+  { id: 'access', label: 'Accessibility', note: 'Motion · contrast', blurb: 'Make the game calmer to look at and easier to read.' },
+  { id: 'data', label: 'Save data', note: 'Backup · reset', blurb: 'Back up, move or erase the progress stored in this browser.' },
 ];
 const pct = (v: number) => `${Math.round(v * 100)}%`;
-const ms = (v: number) => `${v > 0 ? '+' : ''}${Math.round(v)} ms`;
+const DEFAULTS = defaultSettings();
 
-/** Tap-along latency measurement: the player taps to a click track and the average error becomes the offset. */
-function Calibrator({ onClose }: { onClose: () => void }) {
+interface PaneProps {
+  s: Settings;
+  set: (patch: Partial<Settings>) => void;
+  notify: Notify;
+}
+
+function AudioPane({ s, set, notify }: PaneProps) {
   const app = useApp();
-  const { game, store } = app;
-  const [taps, setTaps] = useState<number[]>([]);
-  const previous = useRef(store.profile.settings.audioOffsetMs);
-  const NEEDED = 12;
-  const song = getSong('metronome');
-  const beat = 60 / song.bpm;
-
-  useEffect(() => {
-    game.audio.offsetMs = 0;
-    game.music.play(song, { loop: true, delay: 0.3 });
-    return () => {
-      game.audio.offsetMs = store.profile.settings.audioOffsetMs;
-      game.music.stop(0.1);
-      game.playMenuMusic();
-    };
-  }, []);
-
-  const tap = () => {
-    const t = game.music.songTime();
-    if (Number.isNaN(t) || t < 0) return;
-    const phase = t / beat;
-    const err = (phase - Math.round(phase)) * beat * 1000;
-    setTaps((list) => (list.length >= NEEDED ? list : [...list, err]));
-  };
-  useKey((e) => {
-    if (e.code === 'Space' && !e.repeat) { e.preventDefault(); tap(); }
-    if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
-  });
-
-  // Ignore the first taps while the player finds the pulse; use the median of the rest.
-  const used = taps.slice(2).sort((a, b) => a - b);
-  const median = used.length ? used[Math.floor(used.length / 2)] : 0;
-  const spread = used.length > 2 ? used[used.length - 1] - used[0] : 0;
-  const result = Math.max(-150, Math.min(250, Math.round(median)));
-  const done = taps.length >= NEEDED;
-
+  const { game } = app;
+  const running = useGameState().audio;
+  const [calibrating, setCalibrating] = useState(false);
+  // What the device reports on its own, without the player's correction.
+  const device = Math.round((game.audio.latency - s.audioOffsetMs / 1000) * 1000);
+  const blip = () => app.sound('toggle', 1);
   return (
-    <Dialog title="Sync calibration" actions={
-      <>
-        <Button variant="quiet" sound="back" onClick={onClose}>Cancel</Button>
-        <Button variant="ghost" onClick={() => setTaps([])} disabled={taps.length === 0}>Start over</Button>
-        <Button variant="primary" disabled={!done} onClick={() => { store.updateSettings({ audioOffsetMs: result }); onClose(); }}>
-          Apply {ms(result)}
-        </Button>
-      </>
-    }>
-      <p>Tap the pad (or press <kbd>Space</kbd>) exactly on each click you hear. {NEEDED} taps are needed.</p>
-      <button type="button" class={`tap-pad cut ${done ? 'is-done' : ''}`} onPointerDown={(e) => { e.preventDefault(); tap(); }}>
-        <span class="tap-pad__count mono">{Math.min(taps.length, NEEDED)}<small>/{NEEDED}</small></span>
-        <span class="tap-pad__dots">{Array.from({ length: NEEDED }, (_, i) => <i key={i} class={i < taps.length ? 'is-on' : ''} />)}</span>
-        <span class="tap-pad__hint">{done ? 'Measured' : 'Tap here'}</span>
-      </button>
-      <div class="calib">
-        <div><span>Measured offset</span><b class="mono">{used.length ? ms(result) : '—'}</b></div>
-        <div><span>Consistency</span><b class="mono">{used.length > 2 ? (spread < 60 ? 'Steady' : spread < 120 ? 'Fair' : 'Loose · try again') : '—'}</b></div>
-        <div><span>Current setting</span><b class="mono">{ms(previous.current)}</b></div>
-      </div>
-    </Dialog>
+    <>
+      {!running && (
+        <p class="set-status is-warn"><i aria-hidden="true" />Sound is not running in this browser right now, so changes here cannot be heard yet.</p>
+      )}
+      <Group title="Mix" aside={s.muted ? <span class="set-flag">Muted</span> : undefined}>
+        <Slider label="Master volume" hint="Everything the game plays." value={s.master} format={pct} mark={DEFAULTS.master} nudge={0.05} dim={s.muted}
+          onChange={(v) => set({ master: v })} onCommit={blip} />
+        <Slider label="Music" value={s.music} format={pct} mark={DEFAULTS.music} nudge={0.05} dim={s.muted}
+          onChange={(v) => set({ music: v })} />
+        <Slider label="Effects" hint="Jumps, pickups, crashes and menu sounds." value={s.sfx} format={pct} mark={DEFAULTS.sfx} nudge={0.05} dim={s.muted}
+          onChange={(v) => set({ sfx: v })} onCommit={blip} />
+        <Toggle label="Mute all" hint="Silences the game and keeps the levels above." value={s.muted} onChange={(v) => set({ muted: v })} />
+      </Group>
+
+      <Group title="Sync">
+        <Slider label="Sync offset" hint="Raise it if the music sounds late compared with what you see, as it can over Bluetooth."
+          value={s.audioOffsetMs} min={OFFSET_MIN} max={OFFSET_MAX} step={5} nudge={5} origin={0} mark={0} format={formatMs}
+          onChange={(v) => set({ audioOffsetMs: v })} />
+        <Row>
+          <FieldText label="Measure sync"
+            hint={running
+              ? 'Tap along to a click track and the game works out the offset for you.'
+              : 'Needs sound to be running, so there is nothing to measure yet.'} />
+          <Button variant="ghost" size="sm" disabled={!running} onClick={() => setCalibrating(true)}>Calibrate</Button>
+        </Row>
+        {running && (
+          <dl class="readout">
+            <div><dt>Device latency</dt><dd class="mono">{device} ms</dd></div>
+            <div><dt>Your offset</dt><dd class="mono">{formatMs(s.audioOffsetMs)}</dd></div>
+            <div><dt>Compensated</dt><dd class="mono">{device + s.audioOffsetMs} ms</dd></div>
+          </dl>
+        )}
+      </Group>
+      {calibrating && (
+        <Calibrator onClose={() => setCalibrating(false)} onApplied={(v) => notify({ tone: 'ok', text: `Sync offset set to ${formatMs(v)}.` })} />
+      )}
+    </>
   );
 }
 
-export function SettingsPanel({ sections = SECTIONS.map((s) => s.id) }: { sections?: Section[] }) {
-  const app = useApp();
-  const { store, game } = app;
-  const s = useProfile().settings;
-  const [section, setSection] = useState<Section>(sections[0]);
-  const [calibrating, setCalibrating] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [note, setNote] = useState('');
-  const file = useRef<HTMLInputElement>(null);
-  const set = (patch: Partial<Settings>) => store.updateSettings(patch);
-  const audioOn = game.audio.running;
+const QUALITY_NOTES: Record<Quality, string> = {
+  auto: 'Starts at full sharpness and lowers the render resolution whenever frames run long. The safe choice on any device.',
+  low: 'Renders at 1× resolution with a simpler backdrop and fewer particles. Fastest.',
+  medium: 'Renders at up to 1.5× resolution with most particles.',
+  high: 'Renders at up to 2× resolution with every particle. Sharpest, and the heaviest on the device.',
+};
 
-  const exportSave = () => {
-    const blob = new Blob([store.exportSave()], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'geometry-rush-v2-save.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNote('Save file exported.');
+/** What the renderer is doing at this moment, so the effect of a preset can be seen. */
+function RenderReadout() {
+  const { game } = useApp();
+  const res = useRef<HTMLElement>(null);
+  const fps = useRef<HTMLElement>(null);
+  const n = useRef(0);
+  const shown = useRef('');
+  const write = () => {
+    shown.current = game.live.resolution;
+    if (res.current) res.current.textContent = shown.current || '—';
+    if (fps.current) fps.current.textContent = `${Math.round(game.live.fps)} FPS`;
   };
-  const importSave = async (f: File | undefined) => {
-    if (!f) return;
-    try {
-      store.importSave(await f.text());
-      app.sound('unlock');
-      setNote('Save file imported.');
-    } catch {
-      app.sound('deny');
-      setNote('That file is not a valid Geometry Rush V.2 save.');
-    }
-    if (file.current) file.current.value = '';
-  };
-
+  useEffect(write, []);
+  // A new resolution shows at once; the frame rate is only refreshed now and then so it can be read.
+  useFrame(() => { if (game.live.resolution !== shown.current || n.current++ % 20 === 0) write(); });
   return (
-    <div class="settings">
-      <div class="tabs tabs--rail" role="tablist">
-        {SECTIONS.filter((x) => sections.includes(x.id)).map((x) => (
-          <button type="button" key={x.id} role="tab" aria-selected={x.id === section} class={x.id === section ? 'is-on' : ''}
-            onClick={() => { app.sound('toggle', 1); setSection(x.id); }}>{x.label}</button>
+    <dl class="readout">
+      <div><dt>Rendering at</dt><dd class="mono" ref={res}>—</dd></div>
+      <div><dt>Frame rate</dt><dd class="mono" ref={fps}>—</dd></div>
+    </dl>
+  );
+}
+
+function useFullscreen(): { supported: boolean; on: boolean; toggle: () => Promise<boolean> } {
+  const [on, setOn] = useState(!!document.fullscreenElement);
+  useEffect(() => {
+    const sync = () => setOn(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+  const toggle = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return { supported: !!document.fullscreenEnabled, on, toggle };
+}
+
+const HELD_BY_MOTION = 'Held off by Reduced motion, in Accessibility.';
+
+function VideoPane({ s, set, notify }: PaneProps) {
+  const fs = useFullscreen();
+  return (
+    <>
+      <Group title="Quality">
+        <Segmented<Quality> label="Preset" hint={QUALITY_NOTES[s.quality]} value={s.quality} onChange={(v) => set({ quality: v })}
+          options={[
+            { id: 'auto', label: 'Auto', note: 'Adapts' },
+            { id: 'low', label: 'Low', note: '1×' },
+            { id: 'medium', label: 'Medium', note: '1.5×' },
+            { id: 'high', label: 'High', note: '2×' },
+          ]} />
+        <RenderReadout />
+      </Group>
+
+      <Group title="Effects">
+        <Toggle label="Particles" hint="Dust, sparks, bursts and ambient motes. Off keeps only a sparse trace of them." value={s.particles} onChange={(v) => set({ particles: v })} />
+        <Toggle label="Screen shake" hint="The camera jolt on a crash." value={s.shake && !s.reducedMotion} locked={s.reducedMotion}
+          note={s.reducedMotion ? HELD_BY_MOTION : undefined} onChange={(v) => set({ shake: v })} />
+        <Toggle label="Flashes" hint="Full-screen flashes on drops, crashes and clears." value={s.flashes && !s.reducedMotion} locked={s.reducedMotion}
+          note={s.reducedMotion ? HELD_BY_MOTION : undefined} onChange={(v) => set({ flashes: v })} />
+      </Group>
+
+      <Group title="Display">
+        <Toggle label="Performance readout" hint="Shows frame rate, render resolution and draw counts in the corner while playing." value={s.showFps} onChange={(v) => set({ showFps: v })} />
+        {fs.supported && (
+          <Toggle label="Fullscreen" hint="Fills the screen. Esc leaves it again." value={fs.on}
+            onChange={() => { void fs.toggle().then((ok) => { if (!ok) notify({ tone: 'error', text: 'The browser did not allow fullscreen.' }); }); }} />
+        )}
+      </Group>
+    </>
+  );
+}
+
+function GameplayPane({ s, set, notify }: PaneProps) {
+  const canVibrate = typeof navigator.vibrate === 'function';
+  return (
+    <>
+      <Group title="Run">
+        <Toggle label="Auto retry" hint="Starts the next attempt by itself after a crash. Off waits for a tap or a jump key. Practice always retries." value={s.autoRetry} onChange={(v) => set({ autoRetry: v })} />
+      </Group>
+      <Group title="HUD">
+        <Toggle label="Progress bar" hint="The bar along the top edge and the percentage beside it." value={s.showProgress} onChange={(v) => set({ showProgress: v })} />
+        <Toggle label="Sync streak" hint="The counter that builds while your inputs land on the beat." value={s.showSync} onChange={(v) => set({ showSync: v })} />
+      </Group>
+      <Group title="Feedback">
+        <Toggle label="Vibration" hint="A short buzz on a crash and on a clear." value={s.haptics && canVibrate} locked={!canVibrate}
+          note={canVibrate ? undefined : 'This browser has no vibration support.'}
+          onChange={(v) => { set({ haptics: v }); if (v) navigator.vibrate(30); }} />
+      </Group>
+      <KeyBindingsGroup notify={notify} />
+    </>
+  );
+}
+
+function AccessPane({ s, set }: PaneProps) {
+  const systemMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return (
+    <>
+      <Group title="Motion">
+        <Toggle label="Reduced motion" hint="Removes screen shake, flashes and the squash on jumps, calms the beat pulse, and stops menu animation."
+          note={systemMotion && !s.reducedMotion ? 'Your device asks for reduced motion. Turn this on to calm the game itself as well.' : undefined}
+          value={s.reducedMotion} onChange={(v) => set({ reducedMotion: v })} />
+        <Toggle label="Screen shake" hint="Also listed under Video." value={s.shake && !s.reducedMotion} locked={s.reducedMotion}
+          note={s.reducedMotion ? 'Off while Reduced motion is on.' : undefined} onChange={(v) => set({ shake: v })} />
+        <Toggle label="Flashes" hint="Full-screen flashes. Also listed under Video." value={s.flashes && !s.reducedMotion} locked={s.reducedMotion}
+          note={s.reducedMotion ? 'Off while Reduced motion is on.' : undefined} onChange={(v) => set({ flashes: v })} />
+      </Group>
+      <Group title="Legibility">
+        <Toggle label="High contrast" hint="Brighter secondary text and stronger outlines in every menu, and a solid backing behind text during play."
+          value={s.highContrast} onChange={(v) => set({ highContrast: v })} />
+      </Group>
+    </>
+  );
+}
+
+/** The section last opened, kept for the session so returning to Settings does not start over. */
+let lastSection: Section = 'audio';
+
+export function SettingsPanel({ sections = SECTIONS.map((x) => x.id), compact = false }: { sections?: Section[]; compact?: boolean }) {
+  const app = useApp();
+  const { store } = app;
+  const s = useProfile().settings;
+  const list = SECTIONS.filter((x) => sections.includes(x.id));
+  const [section, setSection] = useState<Section>(sections.includes(lastSection) ? lastSection : sections[0]);
+  const [dir, setDir] = useState<'down' | 'up'>('down');
+  const { notice, notify, dismiss } = useNotice();
+  const pane = useRef<HTMLDivElement>(null);
+  const set = (patch: Partial<Settings>) => store.updateSettings(patch);
+  const info = list.find((x) => x.id === section) ?? list[0];
+
+  const open = (id: Section) => {
+    if (id === section) return;
+    app.sound('toggle', 1);
+    setDir(list.findIndex((x) => x.id === id) > list.findIndex((x) => x.id === section) ? 'down' : 'up');
+    setSection(id);
+    lastSection = id;
+    dismiss();
+  };
+  useEffect(() => {
+    pane.current?.scrollTo(0, 0);
+    // When the rail lies flat and scrolls sideways, keep the open category in view.
+    document.getElementById(`set-tab-${section}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [section]);
+
+  const restoreDefaults = (id: SettingsSection) => {
+    const before = sectionValues(store.profile.settings, id);
+    set(sectionValues(defaultSettings(), id));
+    notify({
+      tone: 'ok', text: `${info.label} settings restored to defaults.`,
+      action: { label: 'Undo', run: () => { set(before); notify({ tone: 'ok', text: `${info.label} settings put back.` }); } },
+    });
+  };
+
+  const props: PaneProps = { s, set, notify };
+  return (
+    <div class={`settings ${compact ? 'settings--compact' : ''}`}>
+      <nav class="set-nav" role="tablist" aria-label="Settings categories" aria-orientation={compact ? 'horizontal' : 'vertical'}>
+        {list.map((x, i) => (
+          <button type="button" key={x.id} role="tab" id={`set-tab-${x.id}`} aria-selected={x.id === section} aria-controls="set-pane"
+            class={`set-nav__item ${x.id === section ? 'is-on' : ''}`} onClick={() => open(x.id)}>
+            <span class="set-nav__n mono">{String(i + 1).padStart(2, '0')}</span>
+            <span class="set-nav__label">{x.label}</span>
+            <span class="set-nav__note">{x.note}</span>
+          </button>
         ))}
+        <p class={`set-nav__foot ${store.readOnly ? 'is-warn' : ''}`}>
+          <i aria-hidden="true" />{store.readOnly ? 'Storage blocked · changes last until the page closes' : 'Changes save automatically'}
+        </p>
+      </nav>
+
+      <div class="set-main">
+        <div class="set-pane" id="set-pane" role="tabpanel" aria-labelledby={`set-tab-${section}`} ref={pane}>
+          <div class="set-pane__inner" key={section} data-dir={dir}>
+            <header class="set-pane__head">
+              <div>
+                <h2 class="set-pane__title">{info.label}</h2>
+                <p class="set-pane__blurb">{info.blurb}</p>
+              </div>
+              {section !== 'data' && (
+                <button type="button" class="set-link" disabled={sectionIsDefault(s, section)}
+                  onClick={() => { app.sound('click'); restoreDefaults(section); }}>Restore defaults</button>
+              )}
+            </header>
+            {section === 'audio' && <AudioPane {...props} />}
+            {section === 'video' && <VideoPane {...props} />}
+            {section === 'gameplay' && <GameplayPane {...props} />}
+            {section === 'access' && <AccessPane {...props} />}
+            {section === 'data' && <SaveDataPane notify={notify} clearNotice={dismiss} />}
+          </div>
+        </div>
+        <NoticeBar notice={notice} onDismiss={dismiss} />
       </div>
-
-      <div class="settings__pane" key={section}>
-        {section === 'audio' && <>
-          <Slider label="Master volume" value={s.master} format={pct} onChange={(v) => set({ master: v })} />
-          <Slider label="Music" value={s.music} format={pct} onChange={(v) => set({ music: v })} />
-          <Slider label="Effects" value={s.sfx} format={pct} onChange={(v) => set({ sfx: v })} />
-          <Toggle label="Mute all" value={s.muted} onChange={(v) => set({ muted: v })} />
-          <Slider label="Sync offset" hint="Raise it if the music sounds late compared to what you see (Bluetooth audio)."
-            value={s.audioOffsetMs} min={-150} max={250} step={5} format={ms} onChange={(v) => set({ audioOffsetMs: v })} />
-          <div class="field">
-            <span class="field__text">
-              <span class="field__label">Measure sync</span>
-              <span class="field__hint">
-                {audioOn
-                  ? `Output latency reported by this device: ${Math.round((game.audio.latency - s.audioOffsetMs / 1000) * 1000)} ms. Already compensated.`
-                  : 'Audio is not running on this device, so there is nothing to calibrate.'}
-              </span>
-            </span>
-            <Button variant="ghost" size="sm" disabled={!audioOn} onClick={() => setCalibrating(true)}>Calibrate</Button>
-          </div>
-        </>}
-
-        {section === 'video' && <>
-          <Segmented<Quality> label="Quality" hint="Auto lowers the render resolution when frames run long."
-            value={s.quality} onChange={(v) => set({ quality: v })}
-            options={[{ id: 'auto', label: 'Auto' }, { id: 'low', label: 'Low' }, { id: 'medium', label: 'Medium' }, { id: 'high', label: 'High' }]} />
-          <Toggle label="Particles" hint="Dust, sparks, bursts and ambient motes." value={s.particles} onChange={(v) => set({ particles: v })} />
-          <Toggle label="Screen shake" value={s.shake} onChange={(v) => set({ shake: v })} />
-          <Toggle label="Flashes" hint="Full-screen flashes on drops, crashes and clears." value={s.flashes} onChange={(v) => set({ flashes: v })} />
-          <Toggle label="Performance readout" hint="Frame rate, resolution and draw counts while playing." value={s.showFps} onChange={(v) => set({ showFps: v })} />
-          {document.fullscreenEnabled && (
-            <div class="field">
-              <span class="field__text"><span class="field__label">Fullscreen</span></span>
-              <Button variant="ghost" size="sm" onClick={() => {
-                if (document.fullscreenElement) void document.exitFullscreen();
-                else void document.documentElement.requestFullscreen().catch(() => setNote('Fullscreen was blocked by the browser.'));
-              }}>Toggle</Button>
-            </div>
-          )}
-        </>}
-
-        {section === 'gameplay' && <>
-          <Toggle label="Auto retry" hint="Restart automatically after a crash." value={s.autoRetry} onChange={(v) => set({ autoRetry: v })} />
-          <Toggle label="Progress bar" value={s.showProgress} onChange={(v) => set({ showProgress: v })} />
-          <Toggle label="Sync streak" hint="Show the on-beat streak counter." value={s.showSync} onChange={(v) => set({ showSync: v })} />
-          <Toggle label="Vibration" hint="On devices that support it." value={s.haptics} onChange={(v) => set({ haptics: v })} />
-          <div class="keys">
-            <div><kbd>Space</kbd><kbd>↑</kbd><kbd>W</kbd><span>Jump · hold to fly</span></div>
-            <div><kbd>Click</kbd><kbd>Touch</kbd><kbd>Ⓐ</kbd><span>Same, anywhere on screen</span></div>
-            <div><kbd>Esc</kbd><kbd>P</kbd><span>Pause</span></div>
-            <div><kbd>R</kbd><span>Restart</span></div>
-            <div><kbd>Z</kbd><span>Remove last checkpoint (Practice)</span></div>
-          </div>
-        </>}
-
-        {section === 'access' && <>
-          <Toggle label="Reduced motion" hint="Calms beat pulsing, removes shake, flashes and menu motion." value={s.reducedMotion} onChange={(v) => set({ reducedMotion: v })} />
-          <Toggle label="High-contrast HUD" hint="Solid backing behind in-game text." value={s.highContrast} onChange={(v) => set({ highContrast: v })} />
-        </>}
-
-        {section === 'data' && <>
-          <div class="field">
-            <span class="field__text">
-              <span class="field__label">Export save</span>
-              <span class="field__hint">Download your progress as a file to back it up or move it to another device.</span>
-            </span>
-            <Button variant="ghost" size="sm" onClick={exportSave}>Export</Button>
-          </div>
-          <div class="field">
-            <span class="field__text">
-              <span class="field__label">Import save</span>
-              <span class="field__hint">Replaces the progress on this device.</span>
-            </span>
-            <Button variant="ghost" size="sm" onClick={() => file.current?.click()}>Import</Button>
-            <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => void importSave((e.target as HTMLInputElement).files?.[0])} />
-          </div>
-          <div class="field">
-            <span class="field__text">
-              <span class="field__label">Reset progress</span>
-              <span class="field__hint">Erases records, shards, achievements and unlocks. Settings are kept.</span>
-            </span>
-            <Button variant="danger" size="sm" onClick={() => setConfirmReset(true)}>Reset</Button>
-          </div>
-          {store.readOnly && <p class="warn">This browser is blocking storage, so progress cannot be saved between visits.</p>}
-        </>}
-        {note && <p class="note" role="status">{note}</p>}
-      </div>
-
-      {calibrating && <Calibrator onClose={() => setCalibrating(false)} />}
-      {confirmReset && (
-        <Dialog title="Reset all progress?" actions={
-          <>
-            <Button variant="quiet" sound="back" autoFocus onClick={() => setConfirmReset(false)}>Keep my progress</Button>
-            <Button variant="danger" onClick={() => { store.resetProgress(); setConfirmReset(false); setNote('Progress reset.'); }}>Erase everything</Button>
-          </>
-        }>
-          <p>Every record, shard, achievement and unlocked cosmetic on this device will be erased. This cannot be undone.</p>
-        </Dialog>
-      )}
     </div>
   );
 }

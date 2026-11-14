@@ -4,8 +4,6 @@ export interface InputEdge {
   time: number;
 }
 
-const ACTION_KEYS = new Set(['Space', 'ArrowUp', 'KeyW', 'KeyX']);
-
 /**
  * One-button input from keyboard, mouse, touch and gamepad. Presses and
  * releases are queued with their hardware timestamps so the game can place
@@ -16,6 +14,8 @@ export class Input {
   /** When false, events are ignored and nothing is queued. */
   enabled = false;
   held = false;
+  /** `KeyboardEvent.code` values that press the button. */
+  private actionKeys = new Set(['Space', 'ArrowUp', 'KeyW', 'KeyX']);
   private readonly keys = new Set<string>();
   private readonly pointers = new Set<number>();
   private pad = false;
@@ -52,6 +52,14 @@ export class Input {
     this.held = false;
   }
 
+  /** Replaces the keyboard keys that press the button. Keys no longer bound are released. */
+  setActionKeys(codes: Iterable<string>): void {
+    this.actionKeys = new Set(codes);
+    let dropped = false;
+    for (const code of this.keys) if (!this.actionKeys.has(code)) { this.keys.delete(code); dropped = true; }
+    if (dropped) this.update(performance.now());
+  }
+
   /** Returns and clears the queued edges (oldest first). */
   drain(out: InputEdge[]): void {
     out.length = 0;
@@ -85,7 +93,7 @@ export class Input {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if (!this.enabled || !ACTION_KEYS.has(e.code)) return;
+    if (!this.enabled || !this.actionKeys.has(e.code)) return;
     e.preventDefault();
     if (e.repeat) return;
     this.keys.add(e.code);
