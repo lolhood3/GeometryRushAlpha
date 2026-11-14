@@ -1,4 +1,5 @@
 import { LEVEL_IDS } from '../levels/index.ts';
+import { LATEST_RELEASE, findRelease, pendingNotice, unreadReleases, type Release } from '../updates/index.ts';
 import { evaluateAchievements } from './achievements.ts';
 import { CHASSIS, PAINTS, TRAILS, isUnlocked, unlockedCosmetics } from './cosmetics.ts';
 import {
@@ -142,6 +143,31 @@ export class ProfileStore {
     return unlockedCosmetics(this.profile).filter((k) => !this.profile.seen.includes(k));
   }
 
+  /** Releases the player has not opened in Updates & News. */
+  unreadNews(): Release[] {
+    return unreadReleases(this.profile.news);
+  }
+
+  /** The release a What's New notice should be shown for, or null. */
+  pendingNews(): Release | null {
+    return pendingNotice(this.profile.news);
+  }
+
+  markReleaseViewed(id: string): void {
+    const news = this.profile.news;
+    if (!findRelease(id) || news.viewed.includes(id)) return;
+    this.profile = { ...this.profile, news: { ...news, viewed: [...news.viewed, id] } };
+    this.changed();
+  }
+
+  /** Records that the What's New notice for the current release has been shown, so it never returns. */
+  acknowledgeNews(): void {
+    const news = this.profile.news;
+    if (news.notified === LATEST_RELEASE.id) return;
+    this.profile = { ...this.profile, news: { ...news, notified: LATEST_RELEASE.id } };
+    this.changed();
+  }
+
   setLastLevel(id: string): void {
     if (this.profile.lastLevel === id) return;
     this.profile = { ...this.profile, lastLevel: id };
@@ -222,6 +248,8 @@ export class ProfileStore {
     const p = sanitizeProfile(parsed);
     evaluateAchievements(p);
     this.repairLoadout(p);
+    // What has been read belongs to this player, not to the backup being restored.
+    p.news = this.profile.news;
     this.profile = p;
     this.changed();
     this.flush();
@@ -232,6 +260,7 @@ export class ProfileStore {
     const fresh = defaultProfile();
     fresh.settings = this.profile.settings;
     fresh.veteran = this.profile.veteran;
+    fresh.news = this.profile.news;
     fresh.seen = unlockedCosmetics(fresh);
     this.profile = fresh;
     this.changed();

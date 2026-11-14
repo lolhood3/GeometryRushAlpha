@@ -3,14 +3,17 @@ import { getLevel, LEVEL_IDS, TOTAL_SHARDS } from '../../game/levels/index.ts';
 import { ACHIEVEMENTS } from '../../game/progression/achievements.ts';
 import { findChassis, findPaint, starsEarned, totalStars } from '../../game/progression/cosmetics.ts';
 import { completedCount, isLevelUnlocked, totalShards } from '../../game/progression/profile.ts';
+import { LATEST_RELEASE } from '../../game/updates/index.ts';
 import { ChassisIcon } from '../components/chassis.tsx';
 import { IconArrow, IconPlay, IconShard, IconStar, IconVolume } from '../components/icons.tsx';
+import { WhatsNew } from '../components/whatsnew.tsx';
 import { type ScreenId, useApp, useArrowNav, useFrame, useProfile } from '../context.ts';
 
 const ITEMS: { id: ScreenId; label: string; note: string }[] = [
   { id: 'levels', label: 'Levels', note: 'Five tracks' },
   { id: 'garage', label: 'Garage', note: 'Chassis · paint · trails' },
   { id: 'records', label: 'Records', note: 'Stats · achievements' },
+  { id: 'updates', label: 'Updates & News', note: `v${LATEST_RELEASE.version}` },
   { id: 'settings', label: 'Settings', note: 'Audio · video · sync' },
   { id: 'credits', label: 'Credits', note: 'Rush Engine 2' },
 ];
@@ -34,6 +37,7 @@ export function MainMenu() {
   const rec = profile.levels[target];
   const fresh = rec.attempts === 0;
   const unseen = app.store.unseen().length;
+  const unread = app.store.unreadNews().length;
   const achieved = Object.keys(profile.achievements).length;
   const chassis = findChassis(profile.loadout.chassis);
 
@@ -44,6 +48,7 @@ export function MainMenu() {
           <span class="brand__mark" />
           <span class="brand__text">RUSH ENGINE <b>2</b></span>
         </div>
+        <WhatsNew />
         <div class="menu__status">
           <span class="stat-chip" title="Stars earned"><IconStar size={14} /><b>{starsEarned(profile)}</b><i>/{totalStars()}</i></span>
           <span class="stat-chip" title="Shards banked"><IconShard size={13} /><b>{totalShards(profile)}</b><i>/{TOTAL_SHARDS}</i></span>
@@ -83,6 +88,7 @@ export function MainMenu() {
               <span class="menu-item__index mono">{String(i + 2).padStart(2, '0')}</span>
               <span class="menu-item__label">{item.label}</span>
               {item.id === 'garage' && unseen > 0 && <span class="badge">{unseen} new</span>}
+              {item.id === 'updates' && unread > 0 && <span class="badge">{unread > 1 ? `${unread} new` : 'New'}</span>}
               <span class="menu-item__note">{item.note}</span>
               <IconArrow class="menu-item__arrow" size={18} />
             </button>

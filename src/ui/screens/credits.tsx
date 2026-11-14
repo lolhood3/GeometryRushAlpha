@@ -15,7 +15,7 @@ export function Credits() {
   useKey((e) => { if (e.key === 'Escape') { app.sound('back'); app.go('menu'); } });
   return (
     <div class="screen credits" ref={nav}>
-      <ScreenFrame title="Credits" index="06" onBack={() => app.go('menu')}>
+      <ScreenFrame title="Credits" index="07" onBack={() => app.go('menu')}>
         <div class="credits__body">
           <section class="credits__lead">
             <span class="eyebrow">Created by</span>

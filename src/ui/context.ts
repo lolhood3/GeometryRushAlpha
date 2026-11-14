@@ -5,7 +5,7 @@ import type { Game, GameState } from '../game/game.ts';
 import type { Profile } from '../game/progression/profile.ts';
 import type { ProfileStore } from '../game/progression/store.ts';
 
-export type ScreenId = 'menu' | 'levels' | 'garage' | 'records' | 'settings' | 'credits' | 'play';
+export type ScreenId = 'menu' | 'levels' | 'garage' | 'records' | 'updates' | 'settings' | 'credits' | 'play';
 
 export interface AppApi {
   game: Game;
