@@ -49,13 +49,28 @@ export class AudioEngine {
     return base + this.offsetMs / 1000;
   }
 
-  /** Creates (first call) and resumes the context. Must run inside a user gesture. */
+  /** Called whenever the context starts or stops running (unlock, interruption, tab switch). */
+  onStateChange: (() => void) | null = null;
+
+  /**
+   * Creates (first call) and resumes the context. Must run inside a user gesture.
+   * Browsers leave resume() pending for as long as they refuse to start audio,
+   * so this never waits on it for long: `onStateChange` reports a late start.
+   */
   async unlock(): Promise<boolean> {
     try {
       if (!this.ctx) this.build();
-      if (this.ctx!.state !== 'running') await this.ctx!.resume();
     } catch {
+      // A half-built graph is useless; drop it so the next gesture retries.
+      const c = this.ctx;
+      this.ctx = null;
+      if (c) void c.close().catch(() => {});
       return false;
+    }
+    const c = this.ctx!;
+    if (c.state !== 'running') {
+      const resumed = c.resume().catch(() => {});
+      await Promise.race([resumed, new Promise((r) => setTimeout(r, 300))]);
     }
     return this.running;
   }
@@ -64,6 +79,10 @@ export class AudioEngine {
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctor({ latencyHint: 'interactive' });
     this.ctx = ctx;
+    ctx.addEventListener('statechange', () => this.onStateChange?.());
+    // iOS mutes Web Audio with the ringer switch unless the page asks for media playback.
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) { try { session.type = 'playback'; } catch { /* unsupported value */ } }
 
     const limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -8;
@@ -164,10 +183,11 @@ export class AudioEngine {
   }
 
   suspend(): void {
-    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend().catch(() => {});
   }
 
+  /** Asks the browser to start audio again from any stopped state ('suspended', iOS 'interrupted'). */
   resume(): void {
-    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') void this.ctx.resume().catch(() => {});
   }
 }

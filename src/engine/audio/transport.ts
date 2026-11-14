@@ -18,6 +18,7 @@ export class Transport {
   /** Smoothed (audio clock − perf clock). */
   private skew = NaN;
   private audioT0 = 0;
+  private song: Song | null = null;
 
   constructor(audio: AudioEngine, music: MusicPlayer) {
     this.audio = audio;
@@ -30,6 +31,7 @@ export class Transport {
   start(song: Song, offset: number, delay: number): void {
     const perf = performance.now() / 1000;
     this.active = true;
+    this.song = song;
     this.usingAudio = this.audio.running;
     this.origin = perf + delay - offset;
     if (this.usingAudio) {
@@ -37,6 +39,17 @@ export class Transport {
       this.audioT0 = this.audio.now + delay - offset;
       this.skew = this.audio.now - perf;
     }
+  }
+
+  /**
+   * Audio became available while the song was running silently on the wall
+   * clock (the context was suspended when it started): bring the music in at
+   * the current position.
+   */
+  resync(): void {
+    if (!this.active || this.usingAudio || !this.song || !this.audio.running) return;
+    const t = performance.now() / 1000 - this.origin;
+    this.start(this.song, Math.max(0, t), Math.max(0, -t));
   }
 
   stop(fade = 0.06): void {

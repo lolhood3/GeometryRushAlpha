@@ -110,7 +110,7 @@ export function App({ canvas }: { canvas: HTMLCanvasElement }) {
     if (stage !== 'title') return;
     const begin = () => {
       const game = gameRef.current!;
-      void game.unlockAudio().then(() => game.sfx.play('start'));
+      void game.unlockAudio().then(() => game.sfx.play('start')).catch(() => {});
       setStage('app');
     };
     const onKey = (e: KeyboardEvent) => { if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key !== 'Tab') begin(); };
@@ -124,11 +124,13 @@ export function App({ canvas }: { canvas: HTMLCanvasElement }) {
     if (stage !== 'app') return;
     const wake = () => {
       const game = gameRef.current!;
-      if (!game.audio.running && !document.hidden) void game.unlockAudio();
+      if (!game.audio.running && !document.hidden) void game.unlockAudio().catch(() => {});
     };
-    window.addEventListener('pointerdown', wake);
-    window.addEventListener('keydown', wake);
-    return () => { window.removeEventListener('pointerdown', wake); window.removeEventListener('keydown', wake); };
+    // Touch only counts as a gesture on release, so listen for every event a
+    // browser accepts, and before the UI handles it (capture).
+    const events = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+    for (const e of events) window.addEventListener(e, wake, true);
+    return () => { for (const e of events) window.removeEventListener(e, wake, true); };
   }, [stage]);
 
   const go = useCallback((to: ScreenId) => {
