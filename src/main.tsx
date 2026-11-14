@@ -1,47 +1,13 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
+import '@fontsource-variable/unbounded/wght.css';
+import '@fontsource-variable/geist/wght.css';
+import '@fontsource-variable/geist-mono/wght.css';
+import './ui/styles/base.css';
+import './ui/styles/components.css';
+import './ui/styles/screens.css';
+import './ui/styles/hud.css';
+import { render } from 'preact';
+import { App } from './ui/app.tsx';
 
-// Guard against benign cross-origin frame access errors from parent iframe inspectors
-if (typeof window !== 'undefined') {
-  const isCrossOrigin = (err: unknown): boolean => {
-    if (!err) return false;
-    const str = typeof err === 'string' ? err : String((err as { message?: string })?.message || err);
-    return (
-      str.includes('cross-origin') ||
-      str.includes('Blocked a frame') ||
-      str.includes('SecurityError') ||
-      str.includes('$$typeof') ||
-      str.includes('Protocols, domains, and ports must match')
-    );
-  };
-
-  window.addEventListener(
-    'error',
-    (event) => {
-      if (isCrossOrigin(event.message) || isCrossOrigin(event.error)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    },
-    true
-  );
-
-  window.addEventListener(
-    'unhandledrejection',
-    (event) => {
-      if (isCrossOrigin(event.reason)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    },
-    true
-  );
-}
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+const canvas = document.getElementById('stage') as HTMLCanvasElement;
+const root = document.getElementById('ui') as HTMLElement;
+render(<App canvas={canvas} />, root);
