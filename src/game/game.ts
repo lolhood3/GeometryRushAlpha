@@ -178,6 +178,9 @@ export class Game {
   private cssW = 1;
   private cssH = 1;
   private needsResize = true;
+  /** True while the app is blocked; no frame runs and no input is taken. */
+  private suspended = false;
+  private inputBeforeSuspend = false;
   private scaleIdx = 0;
   private slowFrames = 0;
   private dustAcc = 0;
@@ -213,7 +216,7 @@ export class Game {
       if (document.hidden) {
         if (this.state.mode === 'play') this.pause();
         this.audio.suspend();
-      } else {
+      } else if (!this.suspended) {
         this.audio.resume();
       }
     });
@@ -241,11 +244,37 @@ export class Game {
   // ── Lifecycle ────────────────────────────────────────────────────────────
 
   start(): void {
-    this.loop.start();
+    if (!this.suspended) this.loop.start();
+  }
+
+  /**
+   * Freezes the whole game while the app is blocked (a phone held upright) and
+   * brings it back afterwards. A run in progress is paused, not lost: nothing
+   * is simulated or drawn in between, and the player resumes it deliberately
+   * from the pause menu, so a rotation can never register as a jump.
+   */
+  setSuspended(on: boolean): void {
+    if (on === this.suspended) return;
+    this.suspended = on;
+    if (on) {
+      if (this.state.mode === 'play') this.pause();
+      this.inputBeforeSuspend = this.input.enabled;
+      this.input.setEnabled(false);
+      this.loop.stop();
+      this.audio.suspend();
+    } else {
+      // The viewport has a new shape: measure the canvas again on the next frame.
+      this.needsResize = true;
+      this.input.setEnabled(this.inputBeforeSuspend);
+      this.loop.start();
+      if (!document.hidden) this.audio.resume();
+    }
   }
 
   /** Must be called from a user gesture. Starts audio and the menu soundtrack. */
   async unlockAudio(): Promise<boolean> {
+    // Nothing may start sounding while the app is blocked; the next gesture after it lifts will.
+    if (this.suspended) return false;
     const ok = await this.audio.unlock();
     this.onAudioState();
     return ok;
@@ -712,7 +741,7 @@ export class Game {
   // ── Frame ────────────────────────────────────────────────────────────────
 
   private frame(dt: number): void {
-    if (this.renderer.lost) return;
+    if (this.renderer.lost || this.suspended) return;
     this.time += dt;
     if (this.needsResize) this.resize();
     this.input.poll();

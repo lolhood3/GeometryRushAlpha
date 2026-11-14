@@ -17,6 +17,8 @@ function oldSave(): string {
   const { news: _news, ...rest } = defaultProfile();
   return JSON.stringify(rest);
 }
+/** How many releases such a save has not seen: 2.1.0, where tracking began, and everything since. */
+const owed = () => unreadReleases(untrackedNews()).length;
 const semver = (v: string) => v.split('.').map(Number);
 const newer = (a: string, b: string) => {
   const [x, y] = [semver(a), semver(b)];
@@ -92,27 +94,27 @@ test('store: the notice is shown once and stays gone after a reload', () => {
   store.flush();
   const again = new ProfileStore(mem);
   assert.equal(again.pendingNews(), null);
-  assert.equal(again.unreadNews().length, 1);
+  assert.equal(again.unreadNews().length, owed());
 });
 
 test('store: opening a release marks it read, and reading the latest settles the notice', () => {
   const mem = memory({ [STORAGE_KEY]: oldSave() });
   const store = new ProfileStore(mem);
   store.markReleaseViewed('not-a-release');
-  assert.equal(store.unreadNews().length, 1);
+  assert.equal(store.unreadNews().length, owed());
   store.markReleaseViewed(LATEST_RELEASE.id);
   store.markReleaseViewed(LATEST_RELEASE.id);
-  assert.equal(store.unreadNews().length, 0);
+  assert.equal(store.unreadNews().length, owed() - 1);
   assert.equal(store.pendingNews(), null);
   assert.equal(store.profile.news.viewed.filter((id) => id === LATEST_RELEASE.id).length, 1);
   store.flush();
-  assert.equal(new ProfileStore(mem).unreadNews().length, 0);
+  assert.equal(new ProfileStore(mem).unreadNews().length, owed() - 1);
 });
 
 test('store: resetting progress or importing a backup does not bring old news back', () => {
   const store = new ProfileStore(memory({ [STORAGE_KEY]: oldSave() }));
   store.acknowledgeNews();
-  store.markReleaseViewed(LATEST_RELEASE.id);
+  for (const r of RELEASES) store.markReleaseViewed(r.id);
   store.resetProgress();
   assert.equal(store.pendingNews(), null);
   assert.equal(store.unreadNews().length, 0);

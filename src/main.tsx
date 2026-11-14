@@ -6,8 +6,11 @@ import './ui/styles/components.css';
 import './ui/styles/screens.css';
 import './ui/styles/hud.css';
 import { render } from 'preact';
+// Imported first: the orientation gate must see input before the app does.
+import { RotateGate } from './ui/components/rotate.tsx';
 import { App } from './ui/app.tsx';
 
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
 const root = document.getElementById('ui') as HTMLElement;
 render(<App canvas={canvas} />, root);
+render(<RotateGate />, document.getElementById('gate') as HTMLElement);

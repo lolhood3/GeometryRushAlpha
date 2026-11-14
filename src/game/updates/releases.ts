@@ -10,6 +10,27 @@ import type { Release } from './types.ts';
  */
 export const RELEASES: readonly Release[] = [
   {
+    id: 'v2-1-1',
+    version: '2.1.1',
+    label: 'Hotfix 02',
+    title: 'Landscape Only',
+    date: '2026-11-14',
+    category: 'Hotfix',
+    era: 'v2',
+    description: 'Phones now run Geometry Rush in landscape only. Held upright, the game is covered and frozen until the phone is turned.',
+    features: [],
+    improvements: [
+      'Rotate for me: on browsers that allow it, one tap on the rotate notice goes fullscreen and turns the screen to landscape',
+      'The game asks the phone to hold landscape whenever it goes fullscreen',
+    ],
+    fixes: [
+      'The game can no longer be used on a phone held upright: every screen is covered by a rotate notice and takes no input',
+      'Turning the phone upright mid-run pauses the run instead of letting it play on; resume it from the pause menu once the phone is sideways again',
+      'The picture is measured again after a rotation, so nothing needs reloading',
+      'Tablets, laptops and desktops are not restricted, whatever the shape of the window',
+    ],
+  },
+  {
     id: 'v2-1-0',
     version: '2.1.0',
     title: 'Updates & News',
