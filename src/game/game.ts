@@ -208,6 +208,7 @@ export class Game {
     });
     new ResizeObserver(() => { this.needsResize = true; }).observe(canvas);
     window.addEventListener('resize', () => { this.needsResize = true; });
+    this.audio.onStateChange = () => this.onAudioState();
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         if (this.state.mode === 'play') this.pause();
@@ -246,12 +247,27 @@ export class Game {
   /** Must be called from a user gesture. Starts audio and the menu soundtrack. */
   async unlockAudio(): Promise<boolean> {
     const ok = await this.audio.unlock();
+    this.onAudioState();
+    return ok;
+  }
+
+  /**
+   * The AudioContext started or stopped. Music that was requested while it
+   * could not run is started now, so a late or repeated unlock never leaves
+   * the game silent.
+   */
+  private onAudioState(): void {
+    const ok = this.audio.running;
+    const was = this.state.audio;
     if (ok) {
       this.applySettings(this.settings);
-      if (this.state.mode === 'attract') this.playMenuMusic();
+      if (this.state.mode === 'play') this.transport.resync();
+      else if (!this.music.playing) this.playMenuMusic();
+    } else if (was && this.state.mode === 'play') {
+      // Audio was taken away mid-run (call, lock screen): hold the run instead of freezing it.
+      this.pause();
     }
-    if (ok !== this.state.audio) this.set({ audio: ok });
-    return ok;
+    if (ok !== was) this.set({ audio: ok });
   }
 
   playMenuMusic(): void {

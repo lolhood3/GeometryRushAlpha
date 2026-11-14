@@ -219,7 +219,8 @@ export class MusicPlayer {
         break;
       }
       // Never play notes whose time has already passed (after a stall).
-      if (t >= now - 0.01) this.emit(c, g, idx, Math.max(t, now));
+      // A note that fails to schedule must not stall the sequencer on its step.
+      if (t >= now - 0.01) { try { this.emit(c, g, idx, Math.max(t, now)); } catch { /* skip this step */ } }
       this.nextStep++;
     }
   }
