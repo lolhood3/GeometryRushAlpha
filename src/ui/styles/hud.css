@@ -47,7 +47,10 @@
 .pause__pct small { font-size: 12px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em; }
 .pause__actions { display: grid; gap: 8px; margin-top: 8px; }
 .pause__actions .btn { justify-content: flex-start; }
-.pause__panel:has(.settings) { width: min(640px, 100%); }
+.pause__panel--settings { width: min(700px, 100%); gap: 8px; }
+.pause__panel--settings h2 { font-size: clamp(18px, 3vw, 24px); }
+.pause__panel--settings .pause__pct { display: none; }
+.pause__panel--settings > .btn { justify-self: end; }
 
 .results { background: rgba(3, 4, 10, 0.6); }
 .results__panel { width: min(640px, 100%); gap: 16px; }

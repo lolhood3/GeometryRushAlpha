@@ -5,6 +5,8 @@ import './ui/styles/base.css';
 import './ui/styles/components.css';
 import './ui/styles/screens.css';
 import './ui/styles/hud.css';
+import './ui/styles/settings.css';
+import './ui/styles/records.css';
 import { render } from 'preact';
 // Imported first: the orientation gate must see input before the app does.
 import { RotateGate } from './ui/components/rotate.tsx';

@@ -37,6 +37,18 @@ versions disagree.
 | Restart | R | Pause menu | |
 | Remove checkpoint (practice) | Z | Button, bottom left | |
 
+The keyboard column lists the defaults. Each of the four actions can be rebound under
+Settings, Gameplay; a key belongs to one action at a time. Esc always pauses and goes back,
+and Enter, Tab, Alt, Backspace, Delete and the function keys cannot be bound. Touch, mouse
+and gamepad input is fixed.
+
+## Save data
+
+Progress and settings live in `localStorage` under `geometry_rush_v2_profile`. Settings, Save
+data can export that save to a file and import one back; an import is shown beside the
+current save before it replaces anything. The save replaced by an import, or erased by a
+reset, is kept under `geometry_rush_v2_profile_backup` as a single restore point.
+
 ## Phones are landscape only
 
 On a phone held upright the whole app is covered by a rotate notice and switched off: the
@@ -56,7 +68,7 @@ from the "Rotate for me" button, but nothing depends on that request being grant
 - `src/game/sim/` — deterministic 240 Hz simulation and the level-building DSL.
 - `src/game/levels/` — the five tracks and their generated reference replays.
 - `src/game/music/` — the soundtrack, written as data and synthesised at runtime.
-- `src/game/progression/` — save profile, cosmetics, achievements.
+- `src/game/progression/` — save profile, key bindings (`keys.ts`), cosmetics, achievements, and the read-only views the Records screen is built from (`career.ts`, `achievementInfo.ts`).
 - `src/game/updates/` — the changelog behind Updates & News and the What's New notice.
 - `src/game/render/` — themes, camera, world, player and effects drawing.
 - `src/game/dev/` — solver and verifier used by the tests and `npm run replays`.

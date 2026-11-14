@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { getLevel, LEVEL_IDS } from '../../game/levels/index.ts';
 import { achievementName, findAchievement } from '../../game/progression/achievements.ts';
 import { cosmeticName } from '../../game/progression/cosmetics.ts';
-import { isLevelUnlocked } from '../../game/progression/profile.ts';
+import { keyLabel } from '../../game/progression/keys.ts';
+import { isLevelUnlocked, syncPercent } from '../../game/progression/profile.ts';
 import type { RunResult } from '../../game/game.ts';
 import { Button } from '../components/controls.tsx';
 import { IconFlag, IconPause, IconPlay, IconRetry, IconShard, IconStar, IconUndo } from '../components/icons.tsx';
@@ -17,13 +18,13 @@ function PauseMenu() {
   const meta = getLevel(st.levelId).meta;
   return (
     <div class="overlay pause" ref={nav}>
-      <div class="pause__panel cut">
+      <div class={`pause__panel cut ${settings ? 'pause__panel--settings' : ''}`}>
         <span class="eyebrow">Paused · {st.practice ? 'Practice' : 'Normal'}</span>
         <h2>{meta.name}</h2>
         <p class="pause__pct mono">{Math.floor(app.game.live.progress * 100)}%<small> · attempt {st.attempt}</small></p>
         {settings ? (
           <>
-            <SettingsPanel sections={['audio', 'video', 'gameplay', 'access']} />
+            <SettingsPanel sections={['audio', 'video', 'gameplay', 'access']} compact />
             <Button variant="quiet" sound="back" onClick={() => setSettings(false)}>Done</Button>
           </>
         ) : (
@@ -68,7 +69,7 @@ function Results({ result }: { result: RunResult }) {
         <div class="results__stats">
           <div class="results__rank" data-rank={result.rank}>
             <span class="results__letter">{result.rank}</span>
-            <span><b class="mono">{Math.round(result.syncRate * 100)}%</b><i>on beat</i></span>
+            <span><b class="mono">{syncPercent(result.syncRate)}%</b><i>on beat</i></span>
           </div>
           <div class="stat"><i>Attempts</i><b class="mono">{result.attempts}</b></div>
           <div class="stat"><i>Best streak</i><b class="mono">×{result.bestStreak}</b></div>
@@ -146,17 +147,21 @@ export function PlayScreen() {
     }
   });
 
+  const keys = settings.keys;
   useKey((e) => {
     if (e.repeat) return;
-    if (e.key === 'Escape' || e.code === 'KeyP') {
+    // While a menu is up, keys that move or activate its buttons keep that job even if they are bound to an action.
+    const menuOpen = st.phase === 'paused' || st.phase === 'results';
+    const bound = (codes: string[]) => codes.includes(e.code) && !(menuOpen && (e.code === 'Space' || e.code.startsWith('Arrow')));
+    if (e.key === 'Escape' || bound(keys.pause)) {
       if (document.querySelector('.dialog-scrim')) return;
       if (st.phase === 'paused') game.resume();
       else if (st.phase === 'results') app.leave('levels');
       else game.pause();
       e.preventDefault();
-    } else if (e.code === 'KeyR' && st.phase !== 'paused' && st.phase !== 'won') {
+    } else if (bound(keys.restart) && st.phase !== 'paused' && st.phase !== 'won') {
       game.restart();
-    } else if (e.code === 'KeyZ' && st.practice) {
+    } else if (bound(keys.checkpoint) && st.practice) {
       game.removeCheckpoint();
     }
   });
@@ -171,6 +176,9 @@ export function PlayScreen() {
   }, [st.cue?.id]);
 
   const playing = st.phase === 'running' || st.phase === 'countdown';
+  // On-screen prompts name the key the player actually has bound to jump.
+  const jumpKey = keys.jump.length ? keyLabel(keys.jump[0]) : '';
+  const cueSub = (text: string) => (keys.jump.includes('Space') ? text : text.replace(/Space( · )?/, jumpKey ? `${jumpKey}$1` : ''));
   return (
     <div class={`screen play ${settings.highContrast ? 'is-contrast' : ''}`} style={{ '--accent': meta.themes[0].accent } as never}>
       <div class={`hud ${st.phase === 'results' || st.phase === 'won' ? 'is-hidden' : ''}`}>
@@ -202,7 +210,7 @@ export function PlayScreen() {
         {st.cue && cueShown === st.cue.id && playing && (
           <div class="cue" key={st.cue.id}>
             <b>{st.cue.text}</b>
-            {st.cue.sub && <i>{st.cue.sub}</i>}
+            {st.cue.sub && <i>{cueSub(st.cue.sub)}</i>}
           </div>
         )}
 
@@ -212,7 +220,7 @@ export function PlayScreen() {
           <div class="death" key={st.attempt}>
             <b class="mono">{st.deathPct}%</b>
             {st.newBest && <i>New best</i>}
-            {st.awaitRetry && <span class="death__retry">Tap or press Space to retry</span>}
+            {st.awaitRetry && <span class="death__retry">{jumpKey ? `Tap or press ${jumpKey} to retry` : 'Tap to retry'}</span>}
           </div>
         )}
 
@@ -220,7 +228,7 @@ export function PlayScreen() {
           <div class="hud__practice">
             <span class="mono"><IconFlag size={13} /> {st.checkpoints}</span>
             <button type="button" class="icon-btn" tabIndex={-1} disabled={st.checkpoints === 0} aria-label="Remove last checkpoint"
-              title="Remove last checkpoint (Z)" onClick={() => game.removeCheckpoint()}>
+              title={keys.checkpoint.length ? `Remove last checkpoint (${keyLabel(keys.checkpoint[0])})` : 'Remove last checkpoint'} onClick={() => game.removeCheckpoint()}>
               <IconUndo size={16} />
             </button>
           </div>

@@ -311,6 +311,7 @@ export class Game {
     this.settings = s;
     this.audio.offsetMs = s.audioOffsetMs;
     this.audio.setVolumes({ master: s.master, music: s.music, sfx: s.sfx, muted: s.muted });
+    this.input.setActionKeys(s.keys.jump);
     const q = this.qualityTier();
     this.particles.density = s.particles ? QUALITY[q].density : 0.15;
     if (s.quality !== 'auto') this.scaleIdx = 0;

@@ -91,6 +91,9 @@ kbd {
     linear-gradient(0deg, rgba(4, 6, 12, 0.7) 0%, rgba(4, 6, 12, 0) 30%);
 }
 .scrim--garage { background: rgba(4, 6, 12, 0.8); }
+/* Settings is for reading: the scene stays as a faint horizon, not as a picture behind the rows. */
+.scrim--settings { background: linear-gradient(180deg, rgba(4, 6, 12, 0.98) 0%, rgba(4, 6, 12, 0.975) 66%, rgba(4, 6, 12, 0.93) 100%); }
+.scrim--records { background: linear-gradient(180deg, rgba(4, 6, 12, 0.95) 0%, rgba(4, 6, 12, 0.94) 70%, rgba(4, 6, 12, 0.9) 100%); }
 .scrim--play { background: transparent; }
 
 /* ── Curtain: slats that close over the scene when entering or leaving a level ─ */
@@ -164,6 +167,9 @@ kbd {
 .toast em { color: var(--ink-2); font-size: 12px; }
 @keyframes toast-in { from { opacity: 0; transform: translate3d(24px, 0, 0); } }
 @keyframes toast-out { to { opacity: 0; transform: translate3d(0, -10px, 0); } }
+
+/* ── High contrast ──────────────────────────────────────────────────────── */
+:root.high-contrast { --ink-2: #d9deef; --ink-3: #a9b2cc; --line: rgba(255, 255, 255, 0.24); --line-2: rgba(255, 255, 255, 0.46); }
 
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 .reduced-motion *, .reduced-motion *::before, .reduced-motion *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
