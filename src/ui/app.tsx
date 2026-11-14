@@ -5,6 +5,7 @@ import { getLevel, LEVEL_IDS } from '../game/levels/index.ts';
 import { getSong } from '../game/music/songs.ts';
 import { isLevelUnlocked } from '../game/progression/profile.ts';
 import { ProfileStore, type KeyValueStore } from '../game/progression/store.ts';
+import { gate } from './components/rotate.tsx';
 import { AppContext, type AppApi, type ScreenId, useProfile } from './context.ts';
 import { Credits } from './screens/credits.tsx';
 import { Garage } from './screens/garage.tsx';
@@ -87,6 +88,9 @@ export function App({ canvas }: { canvas: HTMLCanvasElement }) {
           await nextFrame();
         }
         setBoot({ step: 'Warming up', progress: 0.9 });
+        // A phone held upright freezes the game until it is turned (see engine/orientation.ts).
+        game.setSuspended(gate.blocked);
+        gate.subscribe((blocked) => game.setSuspended(blocked));
         game.start();
         window.addEventListener('pagehide', () => store.flush());
         document.addEventListener('visibilitychange', () => { if (document.hidden) store.flush(); });

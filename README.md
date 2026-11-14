@@ -37,9 +37,22 @@ versions disagree.
 | Restart | R | Pause menu | |
 | Remove checkpoint (practice) | Z | Button, bottom left | |
 
+## Phones are landscape only
+
+On a phone held upright the whole app is covered by a rotate notice and switched off: the
+frame loop stops, input is swallowed, audio is suspended, and a run in progress is paused.
+Turning the phone sideways lifts the notice and re-measures the canvas, with no reload. A
+paused run waits in the pause menu.
+
+A phone is a touch device whose shortest screen side is under 600 CSS px
+(`PHONE_MAX_SHORT_SIDE` in `src/engine/orientation.ts`). Tablets, laptops and desktops are
+never restricted, whatever the window shape. Where the browser has the Screen Orientation
+API the game also asks for a landscape lock on the first tap, on entering fullscreen, and
+from the "Rotate for me" button, but nothing depends on that request being granted.
+
 ## Layout
 
-- `src/engine/` — WebGL2 renderer, particles, input, loop, Web Audio synth and sequencer.
+- `src/engine/` — WebGL2 renderer, particles, input, loop, Web Audio synth and sequencer, and the landscape-only gate (`orientation.ts`).
 - `src/game/sim/` — deterministic 240 Hz simulation and the level-building DSL.
 - `src/game/levels/` — the five tracks and their generated reference replays.
 - `src/game/music/` — the soundtrack, written as data and synthesised at runtime.

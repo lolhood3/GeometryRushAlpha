@@ -171,3 +171,54 @@ kbd {
   .layer.is-entering, .layer.is-leaving, .title { animation-duration: 0.01ms; }
   .curtain i { transition-duration: 0.01ms; transition-delay: 0s; }
 }
+
+/* ── Landscape-only gate (phones held upright) ───────────────────────────── */
+.is-rotate-blocked #ui, .is-rotate-blocked #stage { visibility: hidden; }
+.rotate {
+  position: absolute; inset: 0; pointer-events: auto; display: grid; grid-template-rows: 1fr auto; overflow: hidden;
+  padding: calc(24px + var(--safe-t)) calc(24px + var(--safe-r)) calc(20px + var(--safe-b)) calc(24px + var(--safe-l));
+  background:
+    radial-gradient(ellipse 90% 46% at 50% 36%, color-mix(in srgb, var(--accent) 16%, transparent) 0%, transparent 70%),
+    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 44px,
+    linear-gradient(90deg, var(--line) 1px, transparent 1px) 50% 0 / 44px 100%,
+    var(--bg);
+  user-select: none; -webkit-user-select: none; touch-action: none; animation: fade 0.25s ease both;
+}
+.rotate::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 40%, transparent 30%, var(--bg) 82%); }
+.rotate__inner { position: relative; z-index: 1; align-self: center; justify-self: center; display: grid; justify-items: center; gap: 14px; max-width: 340px; text-align: center; animation: rise 0.45s var(--ease) both; }
+.rotate__icon { position: relative; width: 132px; height: 132px; display: grid; place-items: center; margin-bottom: 10px; }
+.rotate__target, .rotate__phone { position: absolute; border-radius: 9px; }
+.rotate__target { width: 104px; height: 58px; border: 1px dashed var(--line-2); animation: rotate-target 3.4s var(--ease) infinite; }
+.rotate__phone {
+  width: 58px; height: 104px; border: 2px solid var(--accent); display: grid; place-items: center;
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+  box-shadow: 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 0 18px color-mix(in srgb, var(--accent) 16%, transparent);
+  animation: rotate-turn 3.4s var(--ease) infinite;
+}
+.rotate__phone::before { content: ''; position: absolute; bottom: 6px; left: 50%; width: 18px; height: 2px; margin-left: -9px; background: color-mix(in srgb, var(--accent) 60%, transparent); }
+.rotate__phone i { width: 15px; height: 15px; background: var(--accent); transform: rotate(45deg); box-shadow: 0 0 14px var(--accent); }
+@keyframes rotate-turn {
+  0% { opacity: 0; transform: rotate(0deg) scale(0.92); }
+  10%, 26% { opacity: 1; transform: rotate(0deg) scale(1); }
+  52%, 86% { opacity: 1; transform: rotate(-90deg) scale(1); }
+  100% { opacity: 0; transform: rotate(-90deg) scale(1.04); }
+}
+@keyframes rotate-target {
+  0%, 40% { border-color: var(--line-2); }
+  54%, 86% { border-color: transparent; }
+  100% { border-color: var(--line-2); }
+}
+.rotate__title { font-family: var(--font-display); font-weight: 900; font-size: clamp(24px, 8.2vw, 34px); line-height: 0.98; letter-spacing: -0.02em; text-transform: uppercase; text-shadow: 0 0 40px color-mix(in srgb, var(--accent) 40%, transparent); }
+.rotate__text { color: var(--ink-2); font-size: 15px; line-height: 1.5; text-wrap: balance; }
+.rotate__btn { margin-top: 8px; min-width: 200px; }
+.rotate__hint { color: var(--ink-3); font-size: 12.5px; line-height: 1.45; text-wrap: balance; }
+.rotate__foot { position: relative; z-index: 1; text-align: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.24em; color: var(--ink-3); }
+.rotate__foot em { color: var(--accent); }
+.reduced-motion .rotate__phone, .reduced-motion .rotate__target { animation: none !important; }
+.reduced-motion .rotate__phone { transform: rotate(-90deg); }
+.reduced-motion .rotate__target { border-color: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .rotate__phone, .rotate__target { animation: none; }
+  .rotate__phone { transform: rotate(-90deg); }
+  .rotate__target { border-color: transparent; }
+}
