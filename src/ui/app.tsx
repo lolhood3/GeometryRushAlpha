@@ -13,6 +13,7 @@ import { MainMenu } from './screens/menu.tsx';
 import { PlayScreen, Toaster } from './screens/play.tsx';
 import { Records } from './screens/records.tsx';
 import { SettingsScreen } from './screens/settings.tsx';
+import { Updates } from './screens/updates.tsx';
 
 type Stage = 'boot' | 'title' | 'app' | 'fatal';
 type Curtain = 'open' | 'closing' | 'closed' | 'opening';
@@ -31,7 +32,7 @@ function safeStorage(): KeyValueStore | null {
 }
 
 const SCREENS: Record<ScreenId, () => preact.JSX.Element> = {
-  menu: MainMenu, levels: LevelSelect, garage: Garage, records: Records, settings: SettingsScreen, credits: Credits, play: PlayScreen,
+  menu: MainMenu, levels: LevelSelect, garage: Garage, records: Records, updates: Updates, settings: SettingsScreen, credits: Credits, play: PlayScreen,
 };
 
 /** Applies settings that live in CSS and keeps the accent colour in step with the focused level. */

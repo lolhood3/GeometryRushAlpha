@@ -231,7 +231,7 @@ export function SettingsScreen() {
   useKey((e) => { if (e.key === 'Escape' && !document.querySelector('.dialog-scrim')) { app.sound('back'); app.go('menu'); } });
   return (
     <div class="screen settings-screen" ref={nav}>
-      <ScreenFrame title="Settings" index="05" onBack={() => app.go('menu')}>
+      <ScreenFrame title="Settings" index="06" onBack={() => app.go('menu')}>
         <SettingsPanel />
       </ScreenFrame>
     </div>

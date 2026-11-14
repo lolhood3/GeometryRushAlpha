@@ -1,4 +1,5 @@
 import { LEVEL_IDS } from '../levels/index.ts';
+import { caughtUpNews, sanitizeNews, type NewsState } from '../updates/index.ts';
 
 export type Quality = 'auto' | 'low' | 'medium' | 'high';
 
@@ -73,6 +74,8 @@ export interface Profile {
   lastLevel: string;
   /** True when an Alpha-era (v1) save was found on this device. */
   veteran: boolean;
+  /** Which releases the player has read and been notified about. */
+  news: NewsState;
 }
 
 export const STORAGE_KEY = 'geometry_rush_v2_profile';
@@ -107,6 +110,7 @@ export function defaultProfile(now = Date.now()): Profile {
     settings: defaultSettings(),
     lastLevel: LEVEL_IDS[0],
     veteran: false,
+    news: caughtUpNews(),
   };
 }
 
@@ -126,6 +130,8 @@ export function sanitizeProfile(raw: unknown, now = Date.now()): Profile {
   const r = raw as Record<string, any>;
   base.createdAt = num(r.createdAt, now, 0);
   base.veteran = bool(r.veteran, false);
+  // A save without this field predates Updates & News, which makes that release news to its owner.
+  base.news = sanitizeNews(r.news);
   base.lastLevel = (LEVEL_IDS as readonly string[]).includes(r.lastLevel) ? r.lastLevel : base.lastLevel;
 
   if (r.levels && typeof r.levels === 'object') {

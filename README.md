@@ -20,6 +20,14 @@ npm run replays    # re-verify every level and regenerate src/game/levels/replay
 Run `npm run replays` after changing a level or the simulation. It fails if a
 level can no longer be completed with all three shards.
 
+## Releasing
+
+Release notes live in `src/game/updates/releases.ts` and nowhere else. To ship a
+version, bump `version` in `package.json` and add an entry at the top of
+`RELEASES` with the same version. The Updates & News screen, the menu marker and
+the What's New notice follow from that entry; `npm test` fails if the two
+versions disagree.
+
 ## Controls
 
 | Action | Keyboard | Touch / mouse | Gamepad |
@@ -36,6 +44,7 @@ level can no longer be completed with all three shards.
 - `src/game/levels/` — the five tracks and their generated reference replays.
 - `src/game/music/` — the soundtrack, written as data and synthesised at runtime.
 - `src/game/progression/` — save profile, cosmetics, achievements.
+- `src/game/updates/` — the changelog behind Updates & News and the What's New notice.
 - `src/game/render/` — themes, camera, world, player and effects drawing.
 - `src/game/dev/` — solver and verifier used by the tests and `npm run replays`.
 - `src/ui/` — Preact screens, components and styles.
