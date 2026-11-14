@@ -132,7 +132,8 @@ export function PlayScreen() {
     if (lv.streak !== l.streak && streak.current && streakN.current) {
       const up = lv.streak > l.streak;
       l.streak = lv.streak;
-      streakN.current.textContent = String(lv.streak);
+      // Keep the last number while the counter fades out, so it never reads ×0.
+      if (lv.streak >= 2) streakN.current.textContent = String(lv.streak);
       streak.current.classList.toggle('is-live', lv.streak >= 2);
       if (up && lv.streak >= 2) {
         streak.current.classList.remove('bump');

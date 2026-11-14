@@ -1,7 +1,8 @@
 # Geometry Rush V.2
 
-A ground-up rebuild of Geometry Rush on a new engine (Rush Engine 2). The legacy
-game in the repository root is untouched; V.2 lives entirely in this folder.
+A one-button rhythm platformer: five handcrafted tracks, three vehicles,
+everything locked to the beat. Built on Rush Engine 2, with all music and sound
+synthesised at runtime.
 
 Created by Ankan Barik.
 
