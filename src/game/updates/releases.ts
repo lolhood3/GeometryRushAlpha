@@ -10,6 +10,26 @@ import type { Release } from './types.ts';
  */
 export const RELEASES: readonly Release[] = [
   {
+    id: 'v2-5-1',
+    version: '2.5.1',
+    label: 'Hotfix 03',
+    title: 'Steady Picture',
+    date: '2026-11-16',
+    category: 'Hotfix',
+    era: 'v2',
+    description: 'Two faults on phones. The pause menu ran off the edge of its panel, and the skyline and stars behind the track could vanish and come back during a run.',
+    features: [],
+    improvements: [
+      'Pause menu on a phone: the track name and progress share one line, with the actions on the left and Practise a part on the right, each given a fixed share of the panel',
+      'A long button label in the pause menu now wraps onto a second line instead of being cut',
+    ],
+    fixes: [
+      'On a phone the pause menu cut off Practise a part: on smaller screens most of the part picker and its button were outside the panel and could not be reached',
+      'The skyline and stars no longer disappear and reappear in the middle of a run. They were being switched off whenever the frame rate dipped and back on when it recovered. They now follow the Quality setting only: drawn on Auto, Medium and High, left out on Low',
+      'The game no longer adjusts effects or resolution while it is paused',
+    ],
+  },
+  {
     id: 'v2-5-0',
     version: '2.5.0',
     title: 'Under the Hood',

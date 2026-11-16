@@ -147,8 +147,6 @@ const QUALITY = {
   high: { dpr: 2, bg: 1, density: 1 },
 } as const;
 const SCALES = [1, 0.85, 0.7, 0.58];
-/** Below this share of the effect budget the backdrop loses its detail pass: it is an effect too. */
-const BACKDROP_DETAIL_FROM = 0.5;
 /** Fewest particles the adaptive cap ever allows: enough for a crash to still read as one. */
 const MIN_PARTICLES = 160;
 
@@ -1280,7 +1278,8 @@ export class Game {
     lv.instances = this.renderer.lastInstances;
     lv.particles = this.particles.count;
     for (const fn of this.frameListeners) fn();
-    this.govern(dt);
+    // A paused game is a still picture: its frames say nothing about what the run can afford.
+    if (!frozen) this.govern(dt);
   }
 
   /** Places the ghost for this frame and fades it in and out. */
@@ -1347,7 +1346,6 @@ export class Game {
     const r = this.renderer;
     const cam = this.camera;
     const pal = this.theme.at(beat);
-    const tier = this.qualityTier();
     r.begin();
 
     const bg = this.bg;
@@ -1356,7 +1354,10 @@ export class Game {
     bg.energy = this.beatInfo.energy;
     bg.horizon = cam.horizonPx;
     bg.scroll = cam.x * cam.scale;
-    bg.quality = this.budget.share < BACKDROP_DETAIL_FROM ? 0 : QUALITY[tier].bg;
+    // The skyline and stars follow the quality the player chose and nothing else. They fill the screen, so taking
+    // them away and bringing them back as the frame rate moved read as the picture cutting out.
+    const chosen = this.settings.quality;
+    bg.quality = QUALITY[chosen === 'auto' ? 'high' : chosen].bg;
     bg.sky0 = pal.sky0; bg.sky1 = pal.sky1; bg.acc = pal.accent; bg.acc2 = pal.accent2;
     r.background(bg);
 

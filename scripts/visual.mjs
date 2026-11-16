@@ -6,6 +6,7 @@
  *   - nothing was written to the browser console as an error or a warning;
  *   - the page never scrolls sideways;
  *   - every control is on the screen, or inside something that scrolls to it;
+ *   - no control is cut off by the edge of the panel it sits in;
  *   - a dialog covers the whole screen, fits inside it, and its buttons can be reached;
  *   - during play the stage is actually being drawn.
  *
@@ -96,6 +97,23 @@ function audit(playing) {
     const r = el.getBoundingClientRect();
     if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1) {
       problems.push(`${name(el)} is partly off the screen (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)})`);
+    }
+  }
+  // A panel with a shaped edge shows nothing beyond it: a control that sticks out is cut off, wherever it is on the screen.
+  for (const el of scope.querySelectorAll('button, a[href], input, textarea, select, [role="tab"], [role="slider"]')) {
+    if (!shown(el)) continue;
+    let box = null;
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      const st = getComputedStyle(p);
+      // Something in between scrolls: the control can be brought into view.
+      if (/(auto|scroll)/.test(st.overflowY + st.overflowX) && (p.scrollHeight > p.clientHeight + 1 || p.scrollWidth > p.clientWidth + 1)) break;
+      if (st.clipPath !== 'none') { box = p; break; }
+    }
+    if (!box) continue;
+    const r = el.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    if (r.left < b.left - 1 || r.top < b.top - 1 || r.right > b.right + 1 || r.bottom > b.bottom + 1) {
+      problems.push(`${name(el)} is cut off by ${name(box).split(' "')[0]} (${Math.round(r.left)}..${Math.round(r.right)} in ${Math.round(b.left)}..${Math.round(b.right)})`);
     }
   }
   if (scrim) {

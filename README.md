@@ -158,8 +158,9 @@ lies; that is what lets it measure the 200 to 400 ms that wireless audio can
 add (`src/game/calibration.ts`). The offset setting runs from -150 to +400 ms.
 
 **Frame rate** is kept by two governors in `src/engine/budget.ts`. One thins
-particles and backdrop detail when frames run long and brings them back when
-there is room; it works at every quality setting. The other, on Auto only,
+particles when frames run long and brings them back when there is room; it
+works at every quality setting. The skyline and stars are not part of it: they
+follow the Quality setting only, so the backdrop never changes mid-run. The other, on Auto only,
 lowers the render resolution after effects have given what they can, and
 raises it again later. Both go back to full quality if cutting changes
 nothing, as on a display held at 30 frames a second. The FPS readout (Settings

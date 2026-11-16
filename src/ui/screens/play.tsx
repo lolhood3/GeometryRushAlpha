@@ -50,7 +50,7 @@ function PauseMenu() {
           <div class="pause__actions">
             <Button variant="primary" size="lg" autoFocus onClick={() => app.game.resume()}><IconPlay size={16} /> Resume</Button>
             <Button onClick={() => app.game.restart()}><IconRetry size={16} /> Restart</Button>
-            <Button onClick={() => app.game.restart(!st.practice)}>
+            <Button class="pause__wide" onClick={() => app.game.restart(!st.practice)}>
               <IconFlag size={15} /> {st.practice ? 'Switch to Normal' : 'Switch to Practice'}
             </Button>
             <Button onClick={() => setSettings(true)}>Settings</Button>
