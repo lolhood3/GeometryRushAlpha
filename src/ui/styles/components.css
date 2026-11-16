@@ -41,7 +41,9 @@
 .icon-btn:disabled { opacity: 0.35; }
 
 .badge { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-ink); background: var(--gold); padding: 3px 7px; }
+.badge--quiet { color: var(--ink-2); background: none; box-shadow: inset 0 0 0 1px var(--line-2); }
 .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); background: var(--ok); padding: 2px 6px; margin-right: 8px; }
+.tag--rival { background: var(--ink-2); }
 .chip { font-size: 12px; color: var(--ink-2); border: 1px solid var(--line-2); padding: 4px 10px; letter-spacing: 0.03em; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -81,12 +83,15 @@
 .tabs .dot { display: inline-block; width: 6px; height: 6px; background: var(--gold); margin-left: 8px; transform: rotate(45deg) translateY(-2px); }
 
 /* ── Dialog ─────────────────────────────────────────────────────────────── */
-.dialog-scrim { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: rgba(2, 3, 8, 0.86); animation: fade 0.2s ease both; }
-.dialog { width: min(520px, 100%); max-height: 100%; overflow-y: auto; padding: clamp(18px, 3.2vh, 28px) clamp(18px, 3vw, 28px); display: grid; gap: clamp(12px, 2vh, 18px); animation: rise 0.3s var(--ease) both; }
+/* One row exactly as tall as the screen allows: without it a tall dialog stretches the row and runs off both ends instead of scrolling. */
+.dialog-scrim { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-rows: minmax(0, 1fr); place-items: center; padding: 20px; background: rgba(2, 3, 8, 0.86); animation: fade 0.2s ease both; }
+/* The heading and the buttons stay put; when there is too little height only the body between them scrolls. */
+.dialog { width: min(520px, 100%); max-height: 100%; overflow: hidden; padding: clamp(18px, 3.2vh, 28px) clamp(18px, 3vw, 28px); display: flex; flex-direction: column; gap: clamp(12px, 2vh, 18px); animation: rise 0.3s var(--ease) both; }
+.dialog__head, .dialog__actions { flex: none; }
 .dialog__head { display: grid; gap: 8px; }
 .dialog h2 { font-family: var(--font-display); font-weight: 800; font-size: 18px; line-height: 1.15; text-transform: uppercase; }
 .dialog--danger .eyebrow { color: var(--hazard); }
-.dialog__body { display: grid; gap: 12px; color: var(--ink-2); font-size: 14px; }
+.dialog__body { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 12px; padding: 2px; margin: -2px; color: var(--ink-2); font-size: 14px; }
 .dialog__body b { color: var(--ink); font-weight: 550; }
 .dialog__fine { font-size: 12.5px; color: var(--ink-3); }
 .dialog__warn { color: var(--gold); }
@@ -100,6 +105,37 @@
 @media (max-width: 640px) {
   .frame__head { grid-template-columns: auto 1fr; }
   .frame__aside { display: none; }
+  /* A count can go on a small screen; a button cannot. */
+  .frame__aside:has(.frame__action) { display: block; }
   .back kbd { display: none; }
 }
 @media (hover: none) { .back kbd { display: none; } }
+
+/* Run codes */
+.runcode { width: min(600px, 100%); }
+.runcode p { color: var(--ink-2); font-size: 13.5px; line-height: 1.5; }
+.runcode__box { width: 100%; min-height: 76px; resize: vertical; padding: 10px 12px; font-size: 12px; line-height: 1.45; word-break: break-all; color: var(--ink); background: rgba(4, 6, 12, 0.7); border: 1px solid var(--line-2); border-radius: 0; }
+.runcode__box:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.runcode__out { min-height: 132px; display: grid; gap: 10px; align-content: start; padding: 12px; border: 1px solid var(--line); }
+.runcode__idle { color: var(--ink-3) !important; }
+.runcode__bad { color: var(--hazard) !important; }
+.runcode__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
+.runcode__head b { font-family: var(--font-display); font-weight: 800; font-size: 15px; text-transform: uppercase; }
+.runcode__ok { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ok); }
+.runcode__facts { display: grid; grid-template-columns: repeat(5, auto); gap: 8px 18px; justify-content: space-between; margin: 0; }
+.runcode__facts div { display: grid; gap: 2px; }
+.runcode__facts dt { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+.runcode__facts dd { margin: 0; font-size: 13.5px; color: var(--ink); }
+.runcode__note { font-size: 12.5px !important; color: var(--ink-3) !important; }
+@media (max-width: 560px) { .runcode__facts { grid-template-columns: repeat(3, auto); } }
+/* A phone held sideways: tightened so the code, the verdict and the buttons are all on screen together. */
+@media (max-height: 520px) {
+  .dialog-scrim:has(.runcode) { padding: 10px 20px; }
+  .runcode { width: min(720px, 100%); padding: 12px 18px; gap: 8px; }
+  .runcode .dialog__head { gap: 4px; }
+  .runcode .dialog__body { gap: 8px; }
+  .runcode p { font-size: 12.5px; line-height: 1.4; }
+  .runcode__box { min-height: 42px; height: 42px; padding: 6px 10px; font-size: 11px; }
+  .runcode__out { min-height: 98px; padding: 8px 10px; gap: 6px; }
+  .runcode__note { font-size: 11.5px !important; }
+}

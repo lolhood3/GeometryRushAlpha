@@ -141,7 +141,12 @@ export function solve(level: Level, options: Partial<SolveOptions> = {}): SolveR
     for (const s of sims) {
       const fly = s.mode !== Mode.Cube;
       k += '|' + Math.round(s.y * (fly ? 10 : 24)) + ',' + Math.round(s.vy * (fly ? 3 : 6)) + ',' + s.mode + (s.grav > 0 ? 'n' : 'f') +
-        (s.held ? 'h' : '-') + (s.fresh ? 'r' : '-') + (s.grounded ? 'g' : '-') + (s.coyote > 0 ? 'c' : '-') + s.shards;
+        (s.held ? 'h' : '-') + (s.fresh ? 'r' : '-') + (s.grounded ? 'g' : '-') + (s.coyote > 0 ? 'c' : '-') + s.shards +
+        (s.mini ? 'm' : '-') + (s.buffer > 0 ? 'b' + s.buffer : '-');
+      if (s.dual) {
+        k += 'd' + Math.round(s.ty * (fly ? 10 : 24)) + ',' + Math.round(s.tvy * (fly ? 3 : 6)) + (s.tgrav > 0 ? 'n' : 'f') +
+          (s.tgrounded ? 'g' : '-') + (s.tcoyote > 0 ? 'c' : '-');
+      }
       let u = 0;
       for (let i = 0; i < s.used.length; i++) u = (u * 31 + s.used[i] * (i + 7)) | 0;
       k += ',' + u;

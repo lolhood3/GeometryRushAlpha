@@ -3,7 +3,10 @@ import {
   defaultSettings, sectionIsDefault, sectionValues, type Quality, type Settings, type SettingsSection,
 } from '../../game/progression/profile.ts';
 import { Button, FieldText, ScreenFrame, Segmented, Slider, Toggle } from '../components/controls.tsx';
+import { INTRO_AGAIN, INTRO_DONE, INTRO_LEVEL, introWanted } from '../../game/onboarding.ts';
+import { getLevel } from '../../game/levels/index.ts';
 import { useApp, useArrowNav, useFrame, useGameState, useKey, useProfile } from '../context.ts';
+import { installApp, useAppStatus } from '../pwa.ts';
 import { Calibrator, OFFSET_MAX, OFFSET_MIN, formatMs } from './settings/calibrator.tsx';
 import { SaveDataPane } from './settings/data.tsx';
 import { KeyBindingsGroup } from './settings/keys.tsx';
@@ -126,6 +129,47 @@ function useFullscreen(): { supported: boolean; on: boolean; toggle: () => Promi
 
 const HELD_BY_MOTION = 'Held off by Reduced motion, in Accessibility.';
 
+/** Installing the game to the home screen, and whether it is saved for playing offline. */
+function AppRow({ notify }: { notify: Notify }) {
+  const app = useAppStatus();
+  const hint = app.installed
+    ? 'Installed. It opens full screen from its own icon.'
+    : app.canInstall
+      ? 'Adds Geometry Rush to your home screen or desktop. It opens full screen, in landscape on phones.'
+      : app.ios
+        ? 'In Safari, open the Share menu and choose Add to Home Screen. It then opens full screen from its own icon.'
+        : 'If your browser supports it, its menu has an Install or Add to Home screen entry.';
+  return (
+    <Row>
+      <FieldText label="Install as an app" hint={hint}
+        note={app.offline ? 'Saved on this device: it starts and plays without a connection.' : undefined} />
+      {app.canInstall && !app.installed && (
+        <Button variant="ghost" size="sm" onClick={() => {
+          void installApp().then((ok) => notify(ok ? { tone: 'ok', text: 'Installed. Look for the Geometry Rush icon.' } : { tone: 'warn', text: 'Not installed. The browser will offer it again later.' }));
+        }}>Install</Button>
+      )}
+    </Row>
+  );
+}
+
+function IntroRow({ notify }: { notify: Notify }) {
+  const app = useApp();
+  const profile = useProfile();
+  const playing = useGameState().mode === 'play';
+  const armed = introWanted(profile);
+  const name = getLevel(INTRO_LEVEL).meta.name;
+  return (
+    <Row>
+      <FieldText label="Guided intro" hint={`Four short lessons over the opening of ${name}: jumping, the beat, shards, and holding.`}
+        note={armed ? `Plays the next time you start ${name}.` : undefined} />
+      <Button variant="ghost" size="sm" disabled={armed || playing} onClick={() => {
+        app.store.updateSeen([INTRO_AGAIN], [INTRO_DONE]);
+        notify({ tone: 'ok', text: `The intro plays the next time you start ${name}.` });
+      }}>{armed ? 'Ready' : 'Play it again'}</Button>
+    </Row>
+  );
+}
+
 function VideoPane({ s, set, notify }: PaneProps) {
   const fs = useFullscreen();
   return (
@@ -155,6 +199,7 @@ function VideoPane({ s, set, notify }: PaneProps) {
           <Toggle label="Fullscreen" hint="Fills the screen. Esc leaves it again." value={fs.on}
             onChange={() => { void fs.toggle().then((ok) => { if (!ok) notify({ tone: 'error', text: 'The browser did not allow fullscreen.' }); }); }} />
         )}
+        <AppRow notify={notify} />
       </Group>
     </>
   );
@@ -166,10 +211,12 @@ function GameplayPane({ s, set, notify }: PaneProps) {
     <>
       <Group title="Run">
         <Toggle label="Auto retry" hint="Starts the next attempt by itself after a crash. Off waits for a tap or a jump key. Practice always retries." value={s.autoRetry} onChange={(v) => set({ autoRetry: v })} />
+        <IntroRow notify={notify} />
       </Group>
       <Group title="HUD">
         <Toggle label="Progress bar" hint="The bar along the top edge and the percentage beside it." value={s.showProgress} onChange={(v) => set({ showProgress: v })} />
         <Toggle label="Sync streak" hint="The counter that builds while your inputs land on the beat." value={s.showSync} onChange={(v) => set({ showSync: v })} />
+        <Toggle label="Timing cue" hint="Says whether each jump was early, on the beat or late, and by how much." value={s.showTiming} onChange={(v) => set({ showTiming: v })} />
       </Group>
       <Group title="Feedback">
         <Toggle label="Vibration" hint="A short buzz on a crash and on a clear." value={s.haptics && canVibrate} locked={!canVibrate}

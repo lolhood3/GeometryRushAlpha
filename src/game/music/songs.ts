@@ -142,16 +142,25 @@ function menu(): Song {
   return { id: 'menu', bpm: 104, root: 45, scale: MINOR, leadWave: 'triangle', sections: [a, b], loop: true };
 }
 
-/** Plain click track for the latency calibration tool. */
+/**
+ * Plain click track for the latency calibration tool. Slow on purpose: the gap
+ * between clicks (600 ms) must be wider than the range of offsets the tool can
+ * tell apart, and wireless audio alone can be 300 ms late.
+ */
 function metronome(): Song {
   return {
-    id: 'metronome', bpm: 120, root: 57, scale: MINOR, leadWave: 'square', loop: true,
+    id: 'metronome', bpm: 100, root: 57, scale: MINOR, leadWave: 'square', loop: true,
     sections: [{ name: 'click', bars: 1, chords: [0], kick: K4, hat: K4, energy: 1 }],
   };
 }
 
 const BUILDERS: Record<string, () => Song> = { genesis, velocity, overdrive, quantum, apex, menu, metronome };
 const cache = new Map<string, Song>();
+
+/** Adds a song built at run time (the daily remix), replacing any earlier one with the same id. */
+export function registerSong(song: Song): void {
+  cache.set(song.id, song);
+}
 
 export function getSong(id: string): Song {
   let s = cache.get(id);

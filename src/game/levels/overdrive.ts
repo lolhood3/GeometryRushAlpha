@@ -1,12 +1,12 @@
 import { Gate } from '../sim/constants.ts';
 import { LevelBuilder, type Level } from '../sim/level.ts';
 
-/** 03 — OVERDRIVE. Gravity pads and the first flight. 144 BPM. */
+/** 03 — OVERDRIVE. Gravity pads, the first flight and the mini gate. 144 BPM. */
 export function buildOverdrive(): Level {
   const L = new LevelBuilder({
     id: 'overdrive', index: 2, name: 'Overdrive', tagline: 'Leave the ground behind.',
     difficulty: 'Hard', tier: 3, stars: 6, bpm: 144, song: 'overdrive',
-    mechanics: ['Ship', 'Gravity pads'],
+    mechanics: ['Ship', 'Gravity pads', 'Mini'],
     themes: [
       { sky0: '#0b0503', sky1: '#4a1d06', accent: '#ffb627', accent2: '#ff6b35', hazard: '#ff2e7e' },
       { sky0: '#0d0308', sky1: '#5a0f2a', accent: '#ffd166', accent2: '#ff3d71', hazard: '#f72585' },
@@ -50,10 +50,15 @@ export function buildOverdrive(): Level {
   L.gate(60, Gate.Cube, 2);
   L.spikes(62.5, 2);
 
-  // ── Break (64–80) ───────────────────────────────────────────────────────
+  // ── Break (64–80): mini ─────────────────────────────────────────────────
+  // Half the size and half the jump: holding the button hops on every 8th note.
   L.theme(64, 2);
-  L.spikes(66).spikes(67);
-  L.pit(68.375, 70.625).orb(69, 0.6).orb(70, 0.6);
+  L.text(63.5, 'MINI', 'Half the size · half the jump');
+  L.gate(64.5, Gate.Mini);
+  L.spikes(66.25, 1, 0, true).spikes(66.75, 1, 0, true).spikes(67.25, 1, 0, true).spikes(67.75, 1, 0, true);
+  // A gap only the mini fits through. Jumping into its face is the mistake.
+  L.block(68.75, 70.25, 0.8, 2.4).spikes(69, 1, 2.4, true).spikes(69.5, 1, 2.4, true).spikes(70, 1, 2.4, true);
+  L.gate(70.75, Gate.Big);
   L.pad(72).orb(73, 4.9).pit(73.6, 76).slab(73.75, 76.5, 3).spikes(75.5, 1, 3);
   L.orb(76.75, 5.6).shard(77.25, 7.9);
   L.spikes(78.75, 2);

@@ -28,7 +28,23 @@ export const WAVE_HALF = 0.3;
 export const WAVE_INNER = 0.14;
 export const HAZARD_HALF = 0.44;
 
+/**
+ * Mini size: a body 0.6 cells across whose jump lasts exactly half a beat, so
+ * a held button hops on every 8th note.
+ */
+export const MINI_HALF = 0.3;
+export const MINI_INNER = 0.1;
+export const MINI_HAZARD_HALF = 0.26;
+export const MINI_JUMP_H = 1.2;
+export const MINI_JUMP_V = 8 * MINI_JUMP_H; // airtime of exactly half a beat
+export const MINI_GRAVITY = 32 * MINI_JUMP_H;
+
 export const COYOTE_BEATS = 0.1;
+/**
+ * A press is remembered for this long. Tap just before landing and the jump
+ * happens on landing, exactly as if the button had still been down.
+ */
+export const BUFFER_BEATS = 0.15;
 export const SYNC_WINDOW = 0.1; // beats, measured against the 8th-note grid
 
 export const KILL_LOW = -3.5;
@@ -38,7 +54,7 @@ export const BUCKET = 4;
 
 export const Kind = { Solid: 0, Spike: 1, Saw: 2, Pad: 3, Orb: 4, Gate: 5, Shard: 6 } as const;
 export const Mode = { Cube: 0, Ship: 1, Wave: 2 } as const;
-export const Gate = { Cube: 0, Ship: 1, Wave: 2, Flip: 3, Unflip: 4, Speed: 5 } as const;
+export const Gate = { Cube: 0, Ship: 1, Wave: 2, Flip: 3, Unflip: 4, Speed: 5, Mini: 6, Big: 7, Dual: 8, Solo: 9 } as const;
 export const Pad = { Jump: 0, Gravity: 1 } as const;
 export const Orb = { Jump: 0, Gravity: 1 } as const;
 export const Style = { Block: 0, Ground: 1, Ceiling: 2, Slab: 3 } as const;

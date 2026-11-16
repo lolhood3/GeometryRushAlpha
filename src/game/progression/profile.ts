@@ -1,4 +1,6 @@
-import { LEVEL_IDS } from '../levels/index.ts';
+import { OFFSET_MAX, OFFSET_MIN } from '../calibration.ts';
+import { isDateKey, previousKey } from '../levels/calendar.ts';
+import { DAILY_ID, LEVEL_IDS } from '../levels/index.ts';
 import { caughtUpNews, sanitizeNews, type NewsState } from '../updates/index.ts';
 import { defaultBindings, sameBindings, sanitizeBindings, type KeyBindings } from './keys.ts';
 
@@ -19,6 +21,9 @@ export interface Settings {
   autoRetry: boolean;
   showProgress: boolean;
   showSync: boolean;
+  /** Say whether each jump was early, on the beat or late. */
+  showTiming: boolean;
+  /** Race a translucent replay of the best attempt at the track. */
   reducedMotion: boolean;
   highContrast: boolean;
   haptics: boolean;
@@ -41,6 +46,19 @@ export interface LevelRecord {
   bestStreak: number;
   /** Fewest attempts needed in one sitting, 0 when never completed. */
   fewestAttempts: number;
+}
+
+/** The daily remix: today's record, and how many days in a row it has been cleared. */
+export interface DailyState {
+  /** The day `record` belongs to (YYYY-MM-DD), or '' before the first daily run. */
+  date: string;
+  record: LevelRecord;
+  /** Days in a row with a clear, ending on `lastClear`. */
+  streak: number;
+  /** The last day the daily was cleared, or ''. */
+  lastClear: string;
+  /** Days on which the daily was cleared, all time. */
+  clears: number;
 }
 
 export interface Totals {
@@ -67,6 +85,7 @@ export interface Profile {
   version: 2;
   createdAt: number;
   levels: Record<string, LevelRecord>;
+  daily: DailyState;
   totals: Totals;
   loadout: Loadout;
   /** Achievement id → unlock timestamp. */
@@ -87,7 +106,7 @@ export function defaultSettings(): Settings {
   return {
     master: 0.8, music: 0.8, sfx: 0.8, muted: false, audioOffsetMs: 0,
     quality: 'auto', particles: true, shake: true, flashes: true, showFps: false,
-    autoRetry: true, showProgress: true, showSync: true,
+    autoRetry: true, showProgress: true, showSync: true, showTiming: true,
     reducedMotion: false, highContrast: false, haptics: true,
     keys: defaultBindings(),
   };
@@ -98,7 +117,7 @@ export type SettingsSection = 'audio' | 'video' | 'gameplay' | 'access';
 export const SETTINGS_SECTIONS: Record<SettingsSection, readonly (keyof Settings)[]> = {
   audio: ['master', 'music', 'sfx', 'muted', 'audioOffsetMs'],
   video: ['quality', 'particles', 'shake', 'flashes', 'showFps'],
-  gameplay: ['autoRetry', 'showProgress', 'showSync', 'haptics', 'keys'],
+  gameplay: ['autoRetry', 'showProgress', 'showSync', 'showTiming', 'haptics', 'keys'],
   access: ['reducedMotion', 'highContrast'],
 };
 
@@ -133,6 +152,7 @@ export function defaultProfile(now = Date.now()): Profile {
     version: 2,
     createdAt: now,
     levels,
+    daily: { date: '', record: emptyRecord(), streak: 0, lastClear: '', clears: 0 },
     totals: { attempts: 0, deaths: 0, jumps: 0, orbs: 0, pads: 0, actions: 0, synced: 0, playSeconds: 0, completions: 0, practiceRuns: 0 },
     loadout: { chassis: 'core', primary: 'cyan', secondary: 'ice', trail: 'line' },
     achievements: {},
@@ -148,6 +168,20 @@ const num = (v: unknown, d: number, lo = -Infinity, hi = Infinity): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d;
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
 const str = (v: unknown, d: string): string => (typeof v === 'string' && v.length < 64 ? v : d);
+
+/** Copies what is valid in an untrusted level record into `d`. */
+function readRecord(d: LevelRecord, s: Record<string, unknown>): void {
+  d.completed = bool(s.completed, false);
+  d.practiceCompleted = bool(s.practiceCompleted, false);
+  d.best = d.completed ? 100 : Math.floor(num(s.best, 0, 0, 99));
+  d.practiceBest = d.practiceCompleted ? 100 : Math.floor(num(s.practiceBest, 0, 0, 99));
+  d.attempts = Math.floor(num(s.attempts, 0, 0));
+  d.completions = Math.floor(num(s.completions, d.completed ? 1 : 0, 0));
+  d.shards = d.completed ? Math.floor(num(s.shards, 0, 0, 7)) : 0;
+  d.bestSync = d.completed ? num(s.bestSync, -1, -1, 1) : -1;
+  d.bestStreak = Math.floor(num(s.bestStreak, 0, 0));
+  d.fewestAttempts = d.completed ? Math.floor(num(s.fewestAttempts, 0, 0)) : 0;
+}
 
 /**
  * Rebuilds a valid profile from untrusted JSON. Unknown fields are dropped and
@@ -168,17 +202,22 @@ export function sanitizeProfile(raw: unknown, now = Date.now()): Profile {
     for (const id of LEVEL_IDS) {
       const s = r.levels[id];
       if (!s || typeof s !== 'object') continue;
-      const d = base.levels[id];
-      d.completed = bool(s.completed, false);
-      d.practiceCompleted = bool(s.practiceCompleted, false);
-      d.best = d.completed ? 100 : Math.floor(num(s.best, 0, 0, 99));
-      d.practiceBest = d.practiceCompleted ? 100 : Math.floor(num(s.practiceBest, 0, 0, 99));
-      d.attempts = Math.floor(num(s.attempts, 0, 0));
-      d.completions = Math.floor(num(s.completions, d.completed ? 1 : 0, 0));
-      d.shards = d.completed ? Math.floor(num(s.shards, 0, 0, 7)) : 0;
-      d.bestSync = d.completed ? num(s.bestSync, -1, -1, 1) : -1;
-      d.bestStreak = Math.floor(num(s.bestStreak, 0, 0));
-      d.fewestAttempts = d.completed ? Math.floor(num(s.fewestAttempts, 0, 0)) : 0;
+      readRecord(base.levels[id], s);
+    }
+  }
+  if (r.daily && typeof r.daily === 'object') {
+    const s = r.daily;
+    const d = base.daily;
+    d.lastClear = isDateKey(s.lastClear) ? s.lastClear : '';
+    d.streak = d.lastClear ? Math.floor(num(s.streak, 1, 1)) : 0;
+    d.clears = Math.floor(num(s.clears, d.lastClear ? 1 : 0, d.lastClear ? 1 : 0));
+    if (isDateKey(s.date) && s.record && typeof s.record === 'object') {
+      d.date = s.date;
+      readRecord(d.record, s.record);
+      // The daily banks no shards, and a clear today is a clear on record.
+      d.record.shards = 0;
+      if (d.record.completed && d.lastClear < d.date) d.record.completed = false;
+      if (!d.record.completed) { d.record.best = Math.min(99, d.record.best); d.record.completions = 0; d.record.bestSync = -1; d.record.fewestAttempts = 0; }
     }
   }
   if (r.totals && typeof r.totals === 'object') {
@@ -203,7 +242,7 @@ export function sanitizeProfile(raw: unknown, now = Date.now()): Profile {
     d.music = num(s.music, d.music, 0, 1);
     d.sfx = num(s.sfx, d.sfx, 0, 1);
     d.muted = bool(s.muted, d.muted);
-    d.audioOffsetMs = Math.round(num(s.audioOffsetMs, 0, -150, 250));
+    d.audioOffsetMs = Math.round(num(s.audioOffsetMs, 0, OFFSET_MIN, OFFSET_MAX));
     d.quality = ['auto', 'low', 'medium', 'high'].includes(s.quality) ? s.quality : d.quality;
     d.particles = bool(s.particles, d.particles);
     d.shake = bool(s.shake, d.shake);
@@ -212,6 +251,7 @@ export function sanitizeProfile(raw: unknown, now = Date.now()): Profile {
     d.autoRetry = bool(s.autoRetry, d.autoRetry);
     d.showProgress = bool(s.showProgress, d.showProgress);
     d.showSync = bool(s.showSync, d.showSync);
+    d.showTiming = bool(s.showTiming, d.showTiming);
     d.reducedMotion = bool(s.reducedMotion, d.reducedMotion);
     d.highContrast = bool(s.highContrast, d.highContrast);
     d.haptics = bool(s.haptics, d.haptics);
@@ -267,10 +307,29 @@ export function completedCount(p: Profile): number {
 }
 
 export function isLevelUnlocked(p: Profile, id: string): boolean {
+  // The daily remix is open to everyone; it is not part of the unlock order.
+  if (id === DAILY_ID) return true;
   const i = (LEVEL_IDS as readonly string[]).indexOf(id);
   if (i <= 0) return i === 0;
   const prev = p.levels[LEVEL_IDS[i - 1]];
   return prev.completed || prev.practiceCompleted;
+}
+
+const NO_RECORD: LevelRecord = Object.freeze(emptyRecord());
+
+/**
+ * The record for anything that can be played. For the daily remix it is the
+ * record of `today` only: yesterday's remix was a different level.
+ */
+export function levelRecord(p: Profile, id: string, today = ''): LevelRecord {
+  if (id !== DAILY_ID) return p.levels[id] ?? NO_RECORD;
+  return today === '' || p.daily.date === today ? p.daily.record : NO_RECORD;
+}
+
+/** Days in a row the daily has been cleared, counting today if it is done and yesterday if today is still open. */
+export function dailyStreak(p: Profile, today: string): number {
+  const d = p.daily;
+  return d.lastClear !== '' && (d.lastClear === today || d.lastClear === previousKey(today)) ? d.streak : 0;
 }
 
 export type SyncRank = 'S' | 'A' | 'B' | 'C' | 'D';

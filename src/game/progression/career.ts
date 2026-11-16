@@ -3,7 +3,7 @@ import { ACHIEVEMENTS, type Achievement } from './achievements.ts';
 import { achievementInfo, type AchievementInfo } from './achievementInfo.ts';
 import { CHASSIS, PAINTS, TRAILS, isUnlocked, starsEarned, totalStars } from './cosmetics.ts';
 import {
-  completedCount, defaultProfile, isLevelUnlocked, popcount3, syncPercent, syncRank, totalShards, type Profile, type SyncRank,
+  completedCount, defaultProfile, isLevelUnlocked, popcount3, syncPercent, syncRank, totalShards, type LevelRecord, type Profile, type SyncRank,
 } from './profile.ts';
 
 /**
@@ -210,9 +210,76 @@ export function trackRows(p: Profile): TrackRow[] {
       id, open: isLevelUnlocked(p, id), topSync: sync === id, topStreak: streak === id,
       allShards: shardCount === 3, shardCount,
       streakFeat: r.bestStreak >= feat,
-      cleanClear: r.fewestAttempts > 0 && r.fewestAttempts <= 3,
+      cleanClear: r.fewestAttempts > 0 && r.fewestAttempts <= CLEAN_ATTEMPTS,
     };
   });
+}
+
+// ── Challenges ──────────────────────────────────────────────────────────────
+
+/**
+ * Optional goals for one track. They are read straight from the track's
+ * record, the same figures the Records screen shows, so nothing extra is
+ * saved and a challenge that is done stays done: records only ever improve.
+ */
+export interface Challenge {
+  id: 'clear' | 'shards' | 'rank-a' | 'rank-s' | 'clean' | 'streak' | 'practice';
+  /** What to do, as an instruction: "Clear at sync rank S". */
+  goal: string;
+  /** The same thing once it is done: "Cleared at sync rank S". */
+  done: string;
+  /** How it is earned, in one line. */
+  how: string;
+  complete: boolean;
+  /** Where the player stands, when there is something to say: "2 of 3", "Best A · 81%". */
+  status: string;
+}
+
+/** Sync rates that earn rank A and rank S, as percentages. `syncRank` is what decides; these only word the goals. */
+export const RANK_PERCENT = { a: 75, s: 90 };
+/** Clean Run asks for a clear within this many attempts of starting the track. */
+export const CLEAN_ATTEMPTS = 3;
+
+/** The challenges of a track, in the order they are usually met. */
+export function trackChallenges(r: LevelRecord): Challenge[] {
+  const shards = popcount3(r.shards);
+  const feat = streakFeat();
+  const sync = r.bestSync >= 0 ? `Best ${syncRank(r.bestSync)} · ${syncPercent(r.bestSync)}%` : '';
+  return [
+    { id: 'clear', goal: 'Clear the track', done: 'Cleared in Normal mode', how: 'Reach the end in Normal mode.',
+      complete: r.completed, status: r.completed || r.best === 0 ? '' : `Best ${r.best}%` },
+    { id: 'shards', goal: 'Bank all three shards', done: 'All three shards banked', how: 'Pick them up and finish the run to keep them.',
+      complete: shards === 3, status: `${shards} of 3` },
+    { id: 'rank-a', goal: 'Clear at sync rank A', done: 'Cleared at sync rank A', how: `Finish a Normal run with ${RANK_PERCENT.a}% of your jumps on the beat.`,
+      complete: r.bestSync >= 0 && 'SA'.includes(syncRank(r.bestSync)), status: sync },
+    { id: 'rank-s', goal: 'Clear at sync rank S', done: 'Cleared at sync rank S', how: `Finish a Normal run with ${RANK_PERCENT.s}% of your jumps on the beat.`,
+      complete: r.bestSync >= 0 && syncRank(r.bestSync) === 'S', status: sync },
+    { id: 'streak', goal: `Hold a streak of ${feat}`, done: `Streak of ${feat} or more`, how: `Land ${feat} jumps in a row on the beat in a Normal run.`,
+      complete: r.bestStreak >= feat, status: r.bestStreak > 0 ? `Best ×${r.bestStreak}` : '' },
+    { id: 'clean', goal: `Clear within ${CLEAN_ATTEMPTS} attempts`, done: `Cleared within ${CLEAN_ATTEMPTS} attempts`, how: `Open the track and reach the end by your ${CLEAN_ATTEMPTS === 3 ? 'third' : `${CLEAN_ATTEMPTS}th`} try.`,
+      complete: r.fewestAttempts > 0 && r.fewestAttempts <= CLEAN_ATTEMPTS, status: r.fewestAttempts > 0 ? `Best ${r.fewestAttempts}` : '' },
+    { id: 'practice', goal: 'Clear it in Practice', done: 'Cleared in Practice', how: 'Reach the end in Practice mode, from the start.',
+      complete: r.practiceCompleted, status: r.practiceCompleted || r.practiceBest === 0 ? '' : `Best ${r.practiceBest}%` },
+  ];
+}
+
+export interface ChallengeTally { done: number; of: number }
+
+export function challengeTally(r: LevelRecord): ChallengeTally {
+  const list = trackChallenges(r);
+  return { done: list.filter((c) => c.complete).length, of: list.length };
+}
+
+/** Challenges completed on every track together. */
+export function challengeTotal(p: Profile): ChallengeTally {
+  let done = 0;
+  let of = 0;
+  for (const id of LEVEL_IDS) {
+    const t = challengeTally(p.levels[id]);
+    done += t.done;
+    of += t.of;
+  }
+  return { done, of };
 }
 
 /** The track that must be cleared (or finished in Practice) to open this one, if it is locked. */

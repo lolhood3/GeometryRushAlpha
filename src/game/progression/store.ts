@@ -1,11 +1,15 @@
-import { LEVEL_IDS } from '../levels/index.ts';
+import { previousKey } from '../levels/calendar.ts';
+import { daily } from '../levels/daily.ts';
+import { DAILY_ID, LEVEL_IDS } from '../levels/index.ts';
 import { LATEST_RELEASE, findRelease, pendingNotice, unreadReleases, type Release } from '../updates/index.ts';
 import { evaluateAchievements } from './achievements.ts';
+import { trackChallenges } from './career.ts';
 import { CHASSIS, PAINTS, TRAILS, isUnlocked, starsEarned, unlockedCosmetics } from './cosmetics.ts';
 import {
-  STORAGE_KEY, completedCount, defaultProfile, importLegacy, isLevelUnlocked, sanitizeProfile, totalShards,
-  type Loadout, type Profile, type Settings,
+  STORAGE_KEY, completedCount, defaultProfile, emptyRecord, importLegacy, isLevelUnlocked, sanitizeProfile, totalShards,
+  type LevelRecord, type Loadout, type Profile, type Settings,
 } from './profile.ts';
+import { GhostStore } from './ghosts.ts';
 
 export interface KeyValueStore {
   getItem(key: string): string | null;
@@ -32,6 +36,12 @@ export interface RunReport {
   shards: number;
   /** Attempts made on this level since it was opened, including this one. */
   sessionAttempts: number;
+  /**
+   * A practice run that began part-way through the track. It still counts
+   * towards the running totals, but it cannot set a Practice best or a
+   * Practice clear, because the player did not play the track up to there.
+   */
+  section?: boolean;
 }
 
 export interface RunOutcome {
@@ -42,6 +52,10 @@ export interface RunOutcome {
   achievements: string[];
   cosmetics: string[];
   unlockedLevel: string | null;
+  /** Ids of the track's challenges this run completed. */
+  challenges: string[];
+  /** Set by the first clear of the day's remix: days in a row it has now been cleared. */
+  dailyStreak: number;
 }
 
 /** Where the save that an import, a reset or a restore replaced is kept. One slot. */
@@ -107,6 +121,8 @@ type Listener = () => void;
  */
 export class ProfileStore {
   profile: Profile;
+  /** Best runs kept for the ghost. Stored beside the save, not in it. */
+  readonly ghosts: GhostStore;
   /** True when progress cannot be written (private mode, quota…). */
   readOnly = false;
   private readonly storage: KeyValueStore | null;
@@ -118,6 +134,7 @@ export class ProfileStore {
 
   constructor(storage: KeyValueStore | null) {
     this.storage = storage;
+    this.ghosts = new GhostStore(storage);
     this.profile = this.load();
   }
 
@@ -198,6 +215,15 @@ export class ProfileStore {
     this.changed();
   }
 
+  /** Adds and removes acknowledgement keys in one change. */
+  updateSeen(add: string[], remove: string[] = []): void {
+    const seen = this.profile.seen.filter((k) => !remove.includes(k));
+    for (const k of add) if (!seen.includes(k)) seen.push(k);
+    if (seen.length === this.profile.seen.length && seen.every((k, i) => k === this.profile.seen[i])) return;
+    this.profile = { ...this.profile, seen };
+    this.changed();
+  }
+
   /** Cosmetics that are unlocked but have not been acknowledged yet. */
   unseen(): string[] {
     return unlockedCosmetics(this.profile).filter((k) => !this.profile.seen.includes(k));
@@ -228,7 +254,21 @@ export class ProfileStore {
     this.changed();
   }
 
+  /**
+   * The record a run on `levelId` is written to. For the daily remix that is
+   * today's record: the first run of a new day starts it from nothing.
+   */
+  private recordFor(levelId: string): LevelRecord | undefined {
+    const p = this.profile;
+    if (levelId !== DAILY_ID) return p.levels[levelId];
+    const key = daily().key;
+    if (p.daily.date !== key) p.daily = { ...p.daily, date: key, record: emptyRecord() };
+    return p.daily.record;
+  }
+
   setLastLevel(id: string): void {
+    // Only a track can be the one the menu offers to continue.
+    if (!(LEVEL_IDS as readonly string[]).includes(id)) return;
     if (this.profile.lastLevel === id) return;
     this.profile = { ...this.profile, lastLevel: id };
     this.changed();
@@ -237,7 +277,7 @@ export class ProfileStore {
   /** Counts the start of an attempt. */
   beginAttempt(levelId: string, practice: boolean): void {
     const p = this.profile;
-    const rec = p.levels[levelId];
+    const rec = this.recordFor(levelId);
     if (!rec) return;
     rec.attempts++;
     p.totals.attempts++;
@@ -253,13 +293,24 @@ export class ProfileStore {
   /** Folds a finished attempt into the profile and reports what it earned. */
   recordRun(r: RunReport): RunOutcome {
     const p = this.profile;
-    const rec = p.levels[r.levelId];
+    const isDaily = r.levelId === DAILY_ID;
+    const known = this.recordFor(r.levelId);
+    if (!known) {
+      // A level the save has no place for (a document being play-tested): the run happened, but nothing is kept.
+      return {
+        newBest: false, previousBest: 0, firstCompletion: false, newShards: 0, achievements: [], cosmetics: [],
+        unlockedLevel: null, challenges: [], dailyStreak: 0,
+      };
+    }
+    const rec = known;
     const before = unlockedCosmetics(p);
-    const nextId = LEVEL_IDS[(LEVEL_IDS as readonly string[]).indexOf(r.levelId) + 1] ?? null;
+    const at = (LEVEL_IDS as readonly string[]).indexOf(r.levelId);
+    const nextId = at >= 0 ? LEVEL_IDS[at + 1] ?? null : null;
     const nextWasLocked = nextId !== null && !isLevelUnlocked(p, nextId);
+    const open = isDaily ? [] : trackChallenges(rec).filter((c) => !c.complete).map((c) => c.id);
     const out: RunOutcome = {
       newBest: false, previousBest: r.practice ? rec.practiceBest : rec.best,
-      firstCompletion: false, newShards: 0, achievements: [], cosmetics: [], unlockedLevel: null,
+      firstCompletion: false, newShards: 0, achievements: [], cosmetics: [], unlockedLevel: null, challenges: [], dailyStreak: 0,
     };
 
     const t = p.totals;
@@ -273,8 +324,10 @@ export class ProfileStore {
 
     const pct = r.completed ? 100 : Math.min(99, Math.floor(r.progress * 100));
     if (r.practice) {
-      if (pct > rec.practiceBest) { rec.practiceBest = pct; out.newBest = true; }
-      if (r.completed) rec.practiceCompleted = true;
+      if (!r.section) {
+        if (pct > rec.practiceBest) { rec.practiceBest = pct; out.newBest = true; }
+        if (r.completed) rec.practiceCompleted = true;
+      }
     } else {
       if (pct > rec.best) { rec.best = pct; out.newBest = true; }
       if (r.bestStreak > rec.bestStreak) rec.bestStreak = r.bestStreak;
@@ -283,15 +336,30 @@ export class ProfileStore {
         rec.completed = true;
         rec.completions++;
         t.completions++;
-        const gained = r.shards & ~rec.shards;
-        out.newShards = (gained & 1) + ((gained >> 1) & 1) + ((gained >> 2) & 1);
-        rec.shards |= r.shards;
+        if (isDaily) {
+          // The remix is a new level every day: there are no shards to bank, only the day to tick off.
+          const d = p.daily;
+          if (d.lastClear !== d.date) {
+            d.streak = d.lastClear === previousKey(d.date) ? d.streak + 1 : 1;
+            d.lastClear = d.date;
+            d.clears++;
+            out.dailyStreak = d.streak;
+          }
+        } else {
+          const gained = r.shards & ~rec.shards;
+          out.newShards = (gained & 1) + ((gained >> 1) & 1) + ((gained >> 2) & 1);
+          rec.shards |= r.shards;
+        }
         const rate = r.actions > 0 ? r.synced / r.actions : 0;
         if (rate > rec.bestSync) rec.bestSync = rate;
         if (rec.fewestAttempts === 0 || r.sessionAttempts < rec.fewestAttempts) rec.fewestAttempts = r.sessionAttempts;
       }
     }
 
+    if (open.length) {
+      const now = trackChallenges(rec);
+      out.challenges = open.filter((id) => now.find((c) => c.id === id)?.complete);
+    }
     out.achievements = [...this.early.achievements, ...evaluateAchievements(p)];
     const after = unlockedCosmetics(p);
     out.cosmetics = [...this.early.cosmetics, ...after.filter((k) => !before.includes(k))];
@@ -335,6 +403,8 @@ export class ProfileStore {
     fresh.news = this.profile.news;
     fresh.seen = unlockedCosmetics(fresh);
     this.profile = fresh;
+    // The runs behind the ghosts belong to the progress that was just wiped.
+    this.ghosts.clear();
     this.changed();
     this.flush();
   }

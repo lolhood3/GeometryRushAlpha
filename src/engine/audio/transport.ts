@@ -27,15 +27,18 @@ export class Transport {
 
   get running(): boolean { return this.active; }
 
-  /** Starts `song` so that position `offset` (s) is reached `delay` seconds from now. */
-  start(song: Song, offset: number, delay: number): void {
+  /**
+   * Starts `song` so that position `offset` (s) is reached `delay` seconds from now.
+   * With `loop` the song repeats and time keeps counting up through the repeats.
+   */
+  start(song: Song, offset: number, delay: number, loop = false): void {
     const perf = performance.now() / 1000;
     this.active = true;
     this.song = song;
     this.usingAudio = this.audio.running;
     this.origin = perf + delay - offset;
     if (this.usingAudio) {
-      this.music.play(song, { offset, delay, loop: false });
+      this.music.play(song, { offset, delay, loop });
       this.audioT0 = this.audio.now + delay - offset;
       this.skew = this.audio.now - perf;
     }

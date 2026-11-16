@@ -125,6 +125,47 @@ export function App({ canvas }: { canvas: HTMLCanvasElement }) {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('click', begin); };
   }, [stage]);
 
+  // Development: `?level=/levels/example.json` loads a level document and starts it in Practice.
+  useEffect(() => {
+    if (!import.meta.env.DEV || stage !== 'app') return;
+    const url = new URLSearchParams(location.search).get('level');
+    if (!url) return;
+    let cancelled = false;
+    void (async () => {
+      const { loadPlaytest, PLAYTEST_ID } = await import('../game/dev/playtest.ts');
+      const say = (lines: string[], good: boolean): void => {
+        let box = document.getElementById('playtest-note');
+        if (!box) { box = document.createElement('pre'); box.id = 'playtest-note'; document.body.appendChild(box); }
+        box.className = good ? 'is-ok' : '';
+        box.textContent = lines.join('\n');
+        box.onclick = () => box?.remove();
+      };
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`${url}: ${res.status} ${res.statusText}`);
+        let value: unknown;
+        try { value = JSON.parse(await res.text()); } catch { throw new Error(`${url} is not a JSON file. Check the path: it is relative to the project folder.`); }
+        const loaded = loadPlaytest(value);
+        if (cancelled) return;
+        if (!loaded.ok) { say([`${url} was not loaded:`, ...loaded.errors.map((e) => `  ${e}`)], false); return; }
+        const r = loaded.report;
+        say([
+          `${url}: ${loaded.level.meta.name}, ${loaded.level.endBeat} beats. Nothing you do on it is saved.`,
+          ...loaded.warnings.map((w) => `  note: ${w}`), ...r.notes.map((n) => `  note: ${n}`), ...r.problems.map((x) => `  problem: ${x}`),
+          r.ok ? '  Can be cleared with all three shards.' : '  Not ready to ship. Run npm run level -- check for the full search.',
+          '(click to dismiss)',
+        ], r.ok);
+        setScreen('menu');
+        setFocusLevelState(PLAYTEST_ID);
+        gameRef.current!.startLevel(PLAYTEST_ID, true);
+        setScreen('play');
+      } catch (e) {
+        if (!cancelled) say(['The level was not loaded:', `  ${e instanceof Error ? e.message : String(e)}`], false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [stage]);
+
   // Browsers may suspend audio on their own (interruptions, autoplay policy): any gesture brings it back.
   useEffect(() => {
     if (stage !== 'app') return;
@@ -171,10 +212,10 @@ export function App({ canvas }: { canvas: HTMLCanvasElement }) {
       game, store, screen, go, focusLevel,
       setFocusLevel: setFocusLevelState,
       sound: (name: SfxName, arg?: number) => game.sfx.play(name, arg),
-      play: (levelId, practice) => {
+      play: (levelId, practice, section = 0) => {
         void throughCurtain(() => {
           setFocusLevelState(levelId);
-          game.startLevel(levelId, practice);
+          game.startLevel(levelId, practice, section);
           setLeaving(null);
           setScreen('play');
         });
@@ -188,6 +229,11 @@ export function App({ canvas }: { canvas: HTMLCanvasElement }) {
       },
     };
   }, [stage, screen, focusLevel, go, throughCurtain]);
+
+  // Development: scripts (npm run visual) start and leave tracks the way the interface does.
+  useEffect(() => {
+    if (import.meta.env.DEV && api) (window as unknown as { __grUi: AppApi }).__grUi = api;
+  }, [api]);
 
   if (stage === 'fatal') {
     return (
