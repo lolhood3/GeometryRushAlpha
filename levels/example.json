@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "meta": {
+    "id": "example",
+    "name": "Example",
+    "tagline": "A short track written as data.",
+    "difficulty": "Easy",
+    "tier": 1,
+    "stars": 1,
+    "bpm": 124,
+    "song": "genesis",
+    "mechanics": ["Jump", "Pads", "Orbs"],
+    "themes": [
+      { "sky0": "#04060f", "sky1": "#0b2a4a", "accent": "#00e5ff", "accent2": "#7c5cff", "hazard": "#ff3d71" },
+      { "sky0": "#070416", "sky1": "#2a1160", "accent": "#5cf2ff", "accent2": "#ff4fd8", "hazard": "#ff5a5a" }
+    ]
+  },
+  "end": 32,
+  "steps": [
+    { "op": "note", "text": "Intro (0-16): single hops, a step up, a pit. Hazards sit on the half beat so the jump is on the beat." },
+    { "op": "text", "beat": 1, "text": "EXAMPLE TRACK", "sub": "levels/example.json" },
+    { "op": "spikes", "beat": 4.5 },
+    { "op": "spikes", "beat": 6.5, "n": 2 },
+    { "op": "block", "b0": 8.5, "b1": 10.5, "y0": 0, "y1": 1 },
+    { "op": "shard", "beat": 9.5, "y": 2.9 },
+    { "op": "spikes", "beat": 12.5 },
+    { "op": "pitAt", "beat": 14.5, "w": 3 },
+
+    { "op": "note", "text": "Build (16-32): a pad onto a tall block, an orb over a wide row of spikes." },
+    { "op": "theme", "beat": 16, "theme": 1 },
+    { "op": "flash", "beat": 16 },
+    { "op": "pad", "beat": 18 },
+    { "op": "block", "b0": 18.5, "b1": 21.5, "y0": 0, "y1": 3 },
+    { "op": "shard", "beat": 20, "y": 4.4 },
+    { "op": "spikes", "beat": 23.5 },
+    { "op": "spikes", "beat": 26, "n": 4 },
+    { "op": "orb", "beat": 26, "y": 2.4 },
+    { "op": "shard", "beat": 26.5, "y": 3.6 },
+    { "op": "spikes", "beat": 29.5, "n": 2 }
+  ]
+}

@@ -10,6 +10,123 @@ import type { Release } from './types.ts';
  */
 export const RELEASES: readonly Release[] = [
   {
+    id: 'v2-5-0',
+    version: '2.5.0',
+    title: 'Under the Hood',
+    date: '2026-11-16',
+    category: 'Minor Update',
+    era: 'v2',
+    description: 'Work on the engine. A run can be shared as a code that the game replays to check, sync calibration copes with wireless audio, effects adapt to what the device can draw, and dialogs fit a phone screen. Behind the scenes, tracks can now be written as data and checked by the solver, and the screenshot checks are a script.',
+    features: [
+      'Run codes: after a Normal run that reaches the end, the results screen can copy a short code for it. Anyone can paste it under Levels, Race a run code: the game plays the run again to check it, shows what really happened in it, and puts it on the track as an outline to race',
+      'Sync calibration measures delays up to 400 ms, enough for wireless earphones. Once the taps are in, the pad flashes with each click as the game would now time it, so you can see whether the result is right before applying it',
+      'Effects adapt to the device: when frames start running long the game thins particles and backdrop detail within a second or two, and brings them back when there is room again. It works at every quality setting',
+    ],
+    improvements: [
+      'Calibration sets aside stray taps instead of averaging them in, says when the taps were too scattered to trust, and times each tap exactly as a press is timed in a run',
+      'On Auto quality the render resolution now comes back up once the device keeps pace again',
+      'A display held at 30 frames a second, as in a phone\'s low-power mode, is recognised: the game tries cutting once, sees that it changes nothing, and returns to full quality',
+      'Dialogs keep their heading and buttons in place and scroll only what is between them, and the calibration and run code dialogs have a layout for a phone held sideways',
+      'The FPS readout also shows the share of effects currently being drawn',
+    ],
+    fixes: [
+      'Dialogs opened from Settings were laid out inside the settings pane instead of the screen, so on a phone part of the calibration and reset dialogs was out of reach',
+      'A sound delay above 250 ms was read by calibration as tapping early, giving an offset in the wrong direction',
+      'Auto quality could lower the render resolution but never raise it again',
+    ],
+    sections: [
+      {
+        title: 'Good to know',
+        items: [
+          'A run code holds the presses of the run and nothing else: no name, no score. The result is worked out by replaying it, so a code cannot claim more than the run did',
+          'A code belongs to the exact layout it was made on. If a track changes in a later update, older codes for it are refused rather than replayed wrongly',
+          'Racing a code lasts for that session only, and runs in Normal mode. The outline of the other run is the only thing that ever runs beside you. Practice runs have no code',
+          'The sync offset now goes from -150 ms to +400 ms. Your current setting is kept, and the calibration click is slower than before so that long delays can be told apart',
+          'Effects that tell you something happened, such as the ring on a jump, a pickup or a crash, are never thinned out',
+        ],
+      },
+      {
+        title: 'For track builders',
+        items: [
+          'A track can be written as a JSON document, one step per line, and checked with npm run level: the same solver and tolerance that guard the built-in tracks say whether it can be cleared with all three shards',
+          'The five tracks can be exported in that format as worked examples, and a document can be play-tested in the development build',
+          'npm run visual walks every screen and dialog at desktop and phone sizes, saves a screenshot of each, and fails when a control is off the screen',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'v2-4-0',
+    version: '2.4.0',
+    title: 'New Moves',
+    date: '2026-11-16',
+    category: 'Minor Update',
+    era: 'v2',
+    description: 'Six additions to how the game plays. Two new gates change the player part-way through a track, a press made slightly early is no longer lost, a cue shows how each jump was timed, your best run can be watched again, every track has seven challenges, and there is a new remix of one track to clear each day.',
+    features: [
+      'Mini gate: the player shrinks to a little over half size, fits through gaps one cell high, and makes shorter, quicker jumps that last half a beat. A second gate restores it. Overdrive has a new passage built around it, from 37% to 40%',
+      'Dual gate: a twin appears on the ceiling under opposite gravity and answers the same button. Both have to survive until the gate that ends it. Quantum has a new passage built around it, from 44% to 50%',
+      'Watch best run: after you clear a track, the results screen has a button that plays your best run of it back from the start, with the music. Nothing is shown beside you while you play. Leave the playback at any time with Back to results or Escape',
+      'Timing cue: after each jump or orb a small bar under the streak counter shows whether you were early, on the beat or late, and by how much. It can be turned off under Settings, Gameplay, HUD',
+      'Challenges: every track has seven optional goals: clear it, bank all three shards, clear at sync rank A, clear at rank S, hold a streak of 25, clear within three attempts, and clear it in Practice. The level select shows how many are done, and the list opens from there or from Records',
+      'Daily Remix: each day one track is cut into the parts of its song and put back together in a new order, with the music rearranged to match. It sits under the five tracks in the level select, is the same for everyone on the same date, and keeps a streak of days cleared in a row',
+    ],
+    improvements: [
+      'Input buffering: a press made up to 0.15 of a beat before the cube lands, or before it reaches an orb, is kept and used on arrival. Holding the button works as before',
+      'The results screen lists the challenges a run completed, and once all shards are banked it offers the next open challenge on that track with a one-tap retry',
+      'On a narrow screen the level select keeps the chosen track in view when you move through the list',
+    ],
+    fixes: [],
+    sections: [
+      {
+        title: 'Good to know',
+        items: [
+          'Challenges are read from the records already in your save, so anything you had achieved before this update is ticked from the start. They give no stars or cosmetics',
+          'The Daily Remix is always open, whatever track it is made from, and can be practised by part like any other. It gives no stars or shards and opens no tracks. Jumps, attempts and play time in it count towards your totals',
+          'Only a Normal clear from the start counts for the daily streak. The day changes at midnight on your device, and a run already in progress finishes on the remix it started',
+          'The best run is recorded in Normal mode only, is kept on this device and belongs to the exact layout it was recorded on, so the Daily Remix has a new one each day. Watching it counts no attempt and changes no record. Best runs are not part of an exported save',
+          'Quantum lost its second blue-orb passage to make room for the dual gate. Blue orbs are still taught earlier in the track',
+          'The reference runs behind the menus and previews were regenerated for the new passages',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'v2-3-0',
+    version: '2.3.0',
+    title: 'Guided Runs',
+    date: '2026-11-16',
+    category: 'Minor Update',
+    era: 'v2',
+    description: 'Six changes to how the game explains itself. New players get a short guided intro, a crash now shows where it happened, practice can start from any part of a track, the level select plays each track before you pick it, the results screen says what is still to get, and the game can be installed and played without a connection.',
+    features: [
+      'Guided intro: the first time you play Genesis, four short lessons are shown over its opening 23 seconds: jumping, jumping on the beat, what shards are, and holding to keep hopping. Each one is ticked off when you do it. Skip ends it, and Settings, Gameplay can play it again',
+      'Practice from a part: every track is divided into the parts of its song (Intro, Build, Drop, Break, Lift). Pick a part on the level select or in the pause menu and practice starts just before it',
+      'Track preview: resting on an open track in the level select plays its first drop behind the menu, with its own music, on a loop',
+      'Track breakdown: the level select shows a strip of each track with the vehicle used along the way and where gravity is turned over, with the share of the run spent as Cube, Ship and Wave, the number of gravity flips, the speed range and the number of hazards',
+      'Install and offline play: the game can be added to the home screen or desktop, where it opens full screen and in landscape, and once loaded it starts and plays without a connection. Settings, Video shows whether it is saved on the device',
+    ],
+    improvements: [
+      'The progress bar marks where your last crash was, your best run on the track, the boundaries between parts, and in Practice every checkpoint you hold',
+      'The crash readout names the part of the track you crashed in, shows your best, and on a new best shows how much you gained',
+      'After a clear, the results screen lists the shards still hidden on the track with a one-tap retry, and the achievement you are closest to with its progress and a link to Records',
+      'The pause menu shows where your last crash was on the track strip and offers practice from that part',
+      'A practice run that starts part-way is labelled with its part, and restarts from that part after a crash when no checkpoint is left',
+    ],
+    fixes: [],
+    sections: [
+      {
+        title: 'Good to know',
+        items: [
+          'Reaching the end of a practice run that started part-way does not count as a Practice clear and sets no Practice best: play from the start to open the next track. Its attempts, jumps and play time count as usual',
+          'A save that had already got past the opening of Genesis is not shown the intro unless you ask for it in Settings',
+          'A locked track shows its breakdown but has no preview and no parts to pick',
+          'Offline play needs the game to have been opened once while online, from a site served over HTTPS',
+        ],
+      },
+    ],
+  },
+  {
     id: 'v2-2-0',
     version: '2.2.0',
     title: 'Settings & Records Evolution',

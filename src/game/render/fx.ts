@@ -18,7 +18,8 @@ export class Fx {
   }
 
   ring(x: number, y: number, c: RGB, size = 0.5, grow = 3.2, life = 0.34): void {
-    this.p.emit({ x, y, life, size, grow, r: c[0], g: c[1], b: c[2], shape: PShape.Ring });
+    // Rings are the acknowledgement of a jump, a pickup, a gate or a crash: never thinned out.
+    this.p.emit({ x, y, life, size, grow, r: c[0], g: c[1], b: c[2], shape: PShape.Ring }, true);
   }
 
   burst(x: number, y: number, c: RGB, count: number, speed: number, shape: number = PShape.Square, life = 0.5): void {

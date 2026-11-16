@@ -26,6 +26,11 @@ export class Particles {
   readonly capacity: number;
   /** 0..1 – scales how many particles `burst` style helpers should emit. */
   density = 1;
+  /**
+   * Most particles allowed alive at once. Past it, new ones are refused unless
+   * they are marked essential, so a heavy moment thins the decoration first.
+   */
+  limit: number;
   count = 0;
   private cursor = 0;
   private readonly x: Float32Array; private readonly y: Float32Array;
@@ -40,6 +45,7 @@ export class Particles {
 
   constructor(capacity = 1536) {
     this.capacity = capacity;
+    this.limit = capacity;
     const f = () => new Float32Array(capacity);
     this.x = f(); this.y = f(); this.vx = f(); this.vy = f(); this.life = f(); this.max = f();
     this.size = f(); this.grow = f(); this.rot = f(); this.spin = f(); this.grav = f(); this.drag = f();
@@ -53,7 +59,9 @@ export class Particles {
     this.count = 0;
   }
 
-  emit(p: ParticleInit): void {
+  /** `essential` particles (the few that tell the player something happened) are spawned even over the limit. */
+  emit(p: ParticleInit, essential = false): void {
+    if (!essential && this.count >= this.limit) return;
     // Find a free slot starting at the cursor; fall back to overwriting.
     let i = this.cursor;
     for (let n = 0; n < 8; n++) {
@@ -61,6 +69,7 @@ export class Particles {
       i = (i + 1) % this.capacity;
     }
     this.cursor = (i + 1) % this.capacity;
+    if (this.life[i] <= 0) this.count++;
     this.x[i] = p.x; this.y[i] = p.y;
     this.vx[i] = p.vx ?? 0; this.vy[i] = p.vy ?? 0;
     this.life[i] = this.max[i] = p.life;

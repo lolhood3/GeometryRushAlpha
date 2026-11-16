@@ -1,12 +1,12 @@
 import { Gate } from '../sim/constants.ts';
 import { LevelBuilder, type Level } from '../sim/level.ts';
 
-/** 04 — QUANTUM. Gravity gates, blue orbs and the wave. 152 BPM. */
+/** 04 — QUANTUM. Gravity gates, blue orbs, the wave and the dual gate. 152 BPM. */
 export function buildQuantum(): Level {
   const L = new LevelBuilder({
     id: 'quantum', index: 3, name: 'Quantum', tagline: 'Up is a decision.',
     difficulty: 'Harder', tier: 4, stars: 8, bpm: 152, song: 'quantum',
-    mechanics: ['Wave', 'Gravity gates', 'Blue orbs'],
+    mechanics: ['Wave', 'Gravity gates', 'Blue orbs', 'Dual'],
     themes: [
       { sky0: '#08030f', sky1: '#3a0d5c', accent: '#c77dff', accent2: '#ff4fd8', hazard: '#ff4d4d' },
       { sky0: '#0c0210', sky1: '#5c0a4a', accent: '#ff6ad5', accent2: '#7b61ff', hazard: '#ffd23f' },
@@ -69,13 +69,21 @@ export function buildQuantum(): Level {
   gap(78, 3, 4.5);
   L.gate(80, Gate.Cube, 2);
 
-  // ── Build (80–96) ───────────────────────────────────────────────────────
-  L.spikes(82.5, 2).spikes(83.5);
-  L.spikes(85).spikes(86);
-  L.pit(87.375, 91.3).gravOrb(88, 0.6).slab(87.75, 92.25, 5.5);
-  L.spikesDown(89.5, 1, 5).spikesDown(90.5, 2, 5);
-  L.gravOrb(91.5, 2.3);
-  L.spikes(93.5, 2);
+  // ── Build (80–96): dual ─────────────────────────────────────────────────
+  // A twin runs along the ceiling and answers the same button, so a hazard in
+  // either lane is a jump for both, and a low roof in either lane is a rest for both.
+  const MIRROR = 3.5;
+  L.text(80.5, 'DUAL', 'One button · two of you');
+  L.ceiling(81.25, 95.25, MIRROR * 2);
+  L.dual(82, MIRROR);
+  L.spikes(83.5);
+  L.spikesDown(85, 1, MIRROR * 2);
+  L.spikes(86.5, 2);
+  L.spikes(88).spikesDown(88, 1, MIRROR * 2);
+  L.slab(89.25, 90.75, 2.9).spikesDown(89.5, 1, 2.4, true).spikesDown(90, 1, 2.4, true).spikesDown(90.5, 1, 2.4, true);
+  L.spikesDown(92, 2, MIRROR * 2);
+  L.spikes(93.5);
+  L.solo(94.5, MIRROR);
 
   // ── Drop B (96–112): wave, tighter ──────────────────────────────────────
   L.theme(96, 1).flash(96);

@@ -12,6 +12,8 @@ const PINK: RGB = [1, 0.42, 0.84];
 const ORANGE: RGB = [1, 0.6, 0.2];
 const WHITE: RGB = [1, 1, 1];
 const DARK: RGB = [0.02, 0.03, 0.06];
+const TEAL: RGB = [0.3, 1, 0.86];
+const VIOLET: RGB = [0.74, 0.56, 1];
 
 export function gateColor(sub: number, v: number): RGB {
   switch (sub) {
@@ -20,6 +22,8 @@ export function gateColor(sub: number, v: number): RGB {
     case Gate.Wave: return BLUE;
     case Gate.Flip: return YELLOW;
     case Gate.Unflip: return BLUE;
+    case Gate.Mini: case Gate.Big: return TEAL;
+    case Gate.Dual: case Gate.Solo: return VIOLET;
     default: return v >= 1.45 ? PINK : v >= 1.2 ? ORANGE : GREEN;
   }
 }
@@ -199,7 +203,30 @@ export class WorldRenderer {
     const breathe = 0.5 + v.pulse * 0.4;
     r.shape(Shape.Box, o.x, o.y, 0.6, 1.5, 0, pack(col, 0.07), line, 0.09, 0.9, breathe, 0.32);
     const ic = pack(col, 0.95);
+    if (o.sub === Gate.Dual || o.sub === Gate.Solo) {
+      // The twin's half of the gate, reflected in the mirror line.
+      const my = 2 * o.v - o.y;
+      r.shape(Shape.Box, o.x, my, 0.6, 1.5, 0, pack(col, 0.07), line, 0.09, 0.9, breathe, 0.32);
+      for (const y of [o.y, my]) {
+        r.shape(Shape.Box, o.x, y + 0.2, 0.13, 0.13, 0, o.sub === Gate.Dual || y === o.y ? ic : 0, line, 0.04, 0.2, 0.4, 0.03);
+        r.shape(Shape.Box, o.x, y, 0.3, 0.025, 0, ic, 0);
+        r.shape(Shape.Box, o.x, y - 0.2, 0.13, 0.13, 0, o.sub === Gate.Dual || y !== o.y ? ic : 0, line, 0.04, 0.2, 0.4, 0.03);
+      }
+      return;
+    }
     switch (o.sub) {
+      case Gate.Mini:
+        // A small body between two arrows closing in on it.
+        r.shape(Shape.Box, o.x, o.y, 0.1, 0.1, 0, ic, line, 0, 0.2, 0.4, 0.02);
+        r.shape(Shape.Tri, o.x, o.y + 0.4, 0.16, 0.11, Math.PI, ic, line, 0, 0.2, 0.4);
+        r.shape(Shape.Tri, o.x, o.y - 0.4, 0.16, 0.11, 0, ic, line, 0, 0.2, 0.4);
+        break;
+      case Gate.Big:
+        // A full-size body between two arrows pushing outwards.
+        r.shape(Shape.Box, o.x, o.y, 0.2, 0.2, 0, ic, line, 0, 0.2, 0.4, 0.04);
+        r.shape(Shape.Tri, o.x, o.y + 0.48, 0.16, 0.11, 0, ic, line, 0, 0.2, 0.4);
+        r.shape(Shape.Tri, o.x, o.y - 0.48, 0.16, 0.11, Math.PI, ic, line, 0, 0.2, 0.4);
+        break;
       case Gate.Cube:
         r.shape(Shape.Box, o.x, o.y, 0.2, 0.2, 0, ic, line, 0, 0.2, 0.4, 0.04);
         break;

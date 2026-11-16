@@ -115,6 +115,30 @@ export interface SawMove {
   phase?: number;
 }
 
+/** One call made on a `LevelBuilder` while a level was being written: the method and what it was given. */
+export interface BuilderCall { op: string; args: unknown[] }
+/** Everything one builder was asked to do, from `new LevelBuilder(...)` to `build()`. */
+export interface BuilderTrace { meta: LevelMeta; speeds: [number, number][]; calls: BuilderCall[] }
+
+let tracing: BuilderTrace[] | null = null;
+
+/**
+ * Runs `fn` and returns what every `LevelBuilder` made inside it was asked to
+ * do. Only the calls the level's author wrote are listed, not the ones the
+ * builder makes on itself. This is how a level written in TypeScript is
+ * turned into a level document (see levels/format.ts).
+ */
+export function traceBuilders<T>(fn: () => T): { result: T; traces: BuilderTrace[] } {
+  const before = tracing;
+  const traces: BuilderTrace[] = [];
+  tracing = traces;
+  try {
+    return { result: fn(), traces };
+  } finally {
+    tracing = before;
+  }
+}
+
 /**
  * Level authoring DSL. Horizontal positions are given in *beats* – the builder
  * resolves them to cells through the speed map, so every object is placed
@@ -138,6 +162,27 @@ export class LevelBuilder {
       this.segs.push({ beat, x, speed });
       this.push(Kind.Gate, x, 1.5, 1.2, 3, Gate.Speed, speed);
     }
+    if (tracing) {
+      const trace: BuilderTrace = { meta, speeds: speeds.map(([b, v]) => [b, v]), calls: [] };
+      tracing.push(trace);
+      // Calls reach the builder through this wrapper, so a method that uses another one is seen from the outside only.
+      let depth = 0;
+      return new Proxy(this, {
+        get(target, key, self) {
+          const value = Reflect.get(target, key, self);
+          if (typeof value !== 'function' || typeof key !== 'string') return value;
+          return (...args: unknown[]) => {
+            if (depth === 0) trace.calls.push({ op: key, args });
+            depth++;
+            try {
+              return (value as (...a: unknown[]) => unknown).apply(self, args);
+            } finally {
+              depth--;
+            }
+          };
+        },
+      });
+    }
   }
 
   /** Cell x of the player's centre at `beat`. */
@@ -146,11 +191,7 @@ export class LevelBuilder {
   }
 
   private push(kind: number, x: number, y: number, w: number, h: number, sub = 0, v = 0, style = 0): Obj {
-    const o: Obj = {
-      id: 0, kind, x, y, w, h,
-      x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2,
-      sub, v, style, slot: -1, mx: 0, my: 0, period: 1, phase: 0,
-    };
+    const o = makeObj(kind, x, y, w, h, sub, v, style);
     this.objs.push(o);
     return o;
   }
@@ -257,9 +298,25 @@ export class LevelBuilder {
     return this.orb(beat, y, Orb.Gravity);
   }
 
-  /** Full-height gate that switches vehicle or gravity. `y` is only where the frame is drawn. */
+  /** Full-height gate that switches vehicle, gravity or size. `y` is only where the frame is drawn. */
   gate(beat: number, kind: number, y = 1.5): this {
     this.push(Kind.Gate, this.x(beat), y, 1.2, 3, kind);
+    return this;
+  }
+
+  /**
+   * Starts dual mode: a twin appears as the player's reflection in the line
+   * y = `mirror`, falls the other way and answers the same button. Close it
+   * with a `Gate.Solo` gate.
+   */
+  dual(beat: number, mirror: number, y = 1.5): this {
+    this.push(Kind.Gate, this.x(beat), y, 1.2, 3, Gate.Dual, mirror);
+    return this;
+  }
+
+  /** Ends dual mode. `mirror` is only used to draw the twin's half of the gate. */
+  solo(beat: number, mirror: number, y = 1.5): this {
+    this.push(Kind.Gate, this.x(beat), y, 1.2, 3, Gate.Solo, mirror);
     return this;
   }
 
@@ -309,46 +366,77 @@ export class LevelBuilder {
   build(): Level {
     if (this.endBeat <= 0) throw new Error(`${this.meta.id}: level has no end`);
     if (this.shardCount !== 3) throw new Error(`${this.meta.id}: expected 3 shards, got ${this.shardCount}`);
-    const endX = this.x(this.endBeat);
-    const minX = -40;
-    const maxX = endX + 48;
-
-    // Ground = everything that is not a pit.
-    const pits = this.pitsList.slice().sort((a, b) => a[0] - b[0]);
-    let cursor = minX;
-    for (const [p0, p1] of pits) {
-      if (p0 > cursor) this.rect(cursor, p0, -14, 0, Style.Ground);
-      cursor = Math.max(cursor, p1);
-    }
-    if (cursor < maxX) this.rect(cursor, maxX, -14, 0, Style.Ground);
-
-    const objs = this.objs.slice().sort((a, b) => a.x0 - b.x0 || a.y0 - b.y0);
-    let slots = 0;
-    objs.forEach((o, i) => {
-      o.id = i;
-      if (o.kind === Kind.Pad || o.kind === Kind.Orb || o.kind === Kind.Shard) o.slot = slots++;
+    return compileLevel({
+      meta: this.meta, objs: this.objs, pits: this.pitsList, segs: this.segs, triggers: this.triggers, endBeat: this.endBeat,
     });
-
-    const bucketOrigin = Math.floor(minX / BUCKET);
-    const count = Math.ceil(maxX / BUCKET) - bucketOrigin + 1;
-    const buckets: number[][] = Array.from({ length: count }, () => []);
-    for (const o of objs) {
-      const b0 = Math.max(0, Math.floor(o.x0 / BUCKET) - bucketOrigin);
-      const b1 = Math.min(count - 1, Math.floor(o.x1 / BUCKET) - bucketOrigin);
-      for (let b = b0; b <= b1; b++) buckets[b].push(o.id);
-    }
-
-    const gates = objs.filter((o) => o.kind === Kind.Gate && o.sub !== Gate.Speed).sort((a, b) => a.x - b.x);
-    const shards = objs.filter((o) => o.kind === Kind.Shard).sort((a, b) => a.v - b.v);
-    const triggers = this.triggers.slice().sort((a, b) => a.x - b.x);
-
-    return {
-      meta: this.meta,
-      bpm: this.meta.bpm,
-      beatDur: 60 / this.meta.bpm,
-      objs, buckets, bucketOrigin, gates,
-      segs: this.segs, triggers, pits,
-      endBeat: this.endBeat, endX, slots, shards, minX, maxX,
-    };
   }
+}
+
+/** Everything a level is made of before it is indexed for the simulation. Ground is not listed: it is whatever is not a pit. */
+export interface LevelParts {
+  meta: LevelMeta;
+  objs: Obj[];
+  pits: [number, number][];
+  segs: SpeedSeg[];
+  triggers: Trigger[];
+  endBeat: number;
+}
+
+/** A blank object of the given kind, centred on (x, y). */
+export function makeObj(kind: number, x: number, y: number, w: number, h: number, sub = 0, v = 0, style = 0): Obj {
+  return {
+    id: 0, kind, x, y, w, h,
+    x0: x - w / 2, y0: y - h / 2, x1: x + w / 2, y1: y + h / 2,
+    sub, v, style, slot: -1, mx: 0, my: 0, period: 1, phase: 0,
+  };
+}
+
+/** Lays the ground, numbers the objects and builds the lookup tables the simulation runs on. */
+export function compileLevel(parts: LevelParts): Level {
+  const segs = parts.segs;
+  const endX = xAtBeat({ segs }, parts.endBeat);
+  const minX = -40;
+  const maxX = endX + 48;
+  const all = parts.objs.slice();
+
+  // Ground = everything that is not a pit.
+  const pits = parts.pits.slice().sort((a, b) => a[0] - b[0]);
+  const ground = (x0: number, x1: number): void => {
+    all.push(makeObj(Kind.Solid, (x0 + x1) / 2, -7, x1 - x0, 14, 0, 0, Style.Ground));
+  };
+  let cursor = minX;
+  for (const [p0, p1] of pits) {
+    if (p0 > cursor) ground(cursor, p0);
+    cursor = Math.max(cursor, p1);
+  }
+  if (cursor < maxX) ground(cursor, maxX);
+
+  const objs = all.sort((a, b) => a.x0 - b.x0 || a.y0 - b.y0);
+  let slots = 0;
+  objs.forEach((o, i) => {
+    o.id = i;
+    if (o.kind === Kind.Pad || o.kind === Kind.Orb || o.kind === Kind.Shard) o.slot = slots++;
+  });
+
+  const bucketOrigin = Math.floor(minX / BUCKET);
+  const count = Math.ceil(maxX / BUCKET) - bucketOrigin + 1;
+  const buckets: number[][] = Array.from({ length: count }, () => []);
+  for (const o of objs) {
+    const b0 = Math.max(0, Math.floor(o.x0 / BUCKET) - bucketOrigin);
+    const b1 = Math.min(count - 1, Math.floor(o.x1 / BUCKET) - bucketOrigin);
+    for (let b = b0; b <= b1; b++) buckets[b].push(o.id);
+  }
+
+  const gates = objs.filter((o) => o.kind === Kind.Gate && o.sub !== Gate.Speed).sort((a, b) => a.x - b.x);
+  const shards = objs.filter((o) => o.kind === Kind.Shard).sort((a, b) => a.v - b.v);
+  const triggers = parts.triggers.slice().sort((a, b) => a.x - b.x);
+
+  return {
+    meta: parts.meta,
+    bpm: parts.meta.bpm,
+    beatDur: 60 / parts.meta.bpm,
+    objs, buckets, bucketOrigin, gates,
+    segs, triggers, pits,
+    endBeat: parts.endBeat, endX, slots, shards, minX, maxX,
+  };
 }

@@ -36,6 +36,8 @@ export interface PlayerPose {
   alpha: number;
   /** 0..1 thruster intensity for the ship. */
   thrust: number;
+  /** Body size: 1, or 0.6 while mini. */
+  scale: number;
 }
 
 /** Draws the chassis icon: a body plus its decorative layers, in a unit square. */
@@ -76,11 +78,12 @@ function drawCube(r: Renderer, look: Look, x: number, y: number, rot: number, si
 export function drawPlayer(r: Renderer, look: Look, p: PlayerPose, pulse: number): void {
   const a = p.alpha;
   if (a <= 0.01) return;
+  const k = p.scale;
   const glow = (0.45 + pulse * 0.3) * a;
-  r.shape(Shape.Blob, p.x, p.y, 1.9, 1.9, 0, pack(look.primary, 0.2 * a), 0);
+  r.shape(Shape.Blob, p.x, p.y, 1.9 * k, 1.9 * k, 0, pack(look.primary, 0.2 * a), 0);
 
   if (p.mode === Mode.Cube) {
-    drawCube(r, look, p.x, p.y, p.rot, 1, p.stretch, a, glow);
+    drawCube(r, look, p.x, p.y, p.rot, k, p.stretch, a, glow);
     return;
   }
   const c = Math.cos(p.rot), s = Math.sin(p.rot);
@@ -89,19 +92,19 @@ export function drawPlayer(r: Renderer, look: Look, p: PlayerPose, pulse: number
     const g = p.grav;
     // Exhaust.
     if (p.thrust > 0.02) {
-      const ex = p.x - 0.72 * c, ey = p.y - 0.72 * s;
-      r.shape(Shape.Blob, ex, ey, 0.5 + p.thrust * 0.35, 0.28, p.rot, pack(look.secondary, 0.85 * p.thrust * a), 0);
+      const ex = p.x - 0.72 * k * c, ey = p.y - 0.72 * k * s;
+      r.shape(Shape.Blob, ex, ey, (0.5 + p.thrust * 0.35) * k, 0.28 * k, p.rot, pack(look.secondary, 0.85 * p.thrust * a), 0);
     }
     // Hull: a wedge under the rider.
-    const hx = p.x + 0.12 * g * s, hy = p.y - 0.12 * g * c;
-    r.shape(Shape.Tri, hx, hy, 0.3, 0.6, p.rot - Math.PI / 2, pack(look.primary, a), line, 0.06, 0.5, glow, 0.04);
-    r.shape(Shape.Box, hx - 0.3 * c, hy - 0.3 * s, 0.08, 0.3, p.rot, pack(look.secondary, a), 0, 0, 0, 0, 0.03);
+    const hx = p.x + 0.12 * k * g * s, hy = p.y - 0.12 * k * g * c;
+    r.shape(Shape.Tri, hx, hy, 0.3 * k, 0.6 * k, p.rot - Math.PI / 2, pack(look.primary, a), line, 0.06 * k, 0.5, glow, 0.04 * k);
+    r.shape(Shape.Box, hx - 0.3 * k * c, hy - 0.3 * k * s, 0.08 * k, 0.3 * k, p.rot, pack(look.secondary, a), 0, 0, 0, 0, 0.03 * k);
     // Rider: the chassis, miniaturised.
-    const rx = p.x - 0.08 * c - 0.17 * g * s, ry = p.y - 0.08 * s + 0.17 * g * c;
-    drawCube(r, look, rx, ry, p.rot, 0.46, 1, a, glow * 0.5);
+    const rx = p.x - (0.08 * c + 0.17 * g * s) * k, ry = p.y - (0.08 * s - 0.17 * g * c) * k;
+    drawCube(r, look, rx, ry, p.rot, 0.46 * k, 1, a, glow * 0.5);
   } else {
-    r.shape(Shape.Tri, p.x, p.y, 0.3, 0.44, p.rot - Math.PI / 2, pack(look.primary, a), line, 0.06, 0.5, glow, 0.04);
-    r.shape(Shape.Tri, p.x - 0.12 * c, p.y - 0.12 * s, 0.13, 0.19, p.rot - Math.PI / 2, pack(look.secondary, a), 0);
+    r.shape(Shape.Tri, p.x, p.y, 0.3 * k, 0.44 * k, p.rot - Math.PI / 2, pack(look.primary, a), line, 0.06 * k, 0.5, glow, 0.04 * k);
+    r.shape(Shape.Tri, p.x - 0.12 * k * c, p.y - 0.12 * k * s, 0.13 * k, 0.19 * k, p.rot - Math.PI / 2, pack(look.secondary, a), 0);
   }
 }
 

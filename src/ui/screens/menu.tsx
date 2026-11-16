@@ -1,4 +1,5 @@
 import { useRef } from 'preact/hooks';
+import { dateKey } from '../../game/levels/calendar.ts';
 import { getLevel, LEVEL_IDS, TOTAL_SHARDS } from '../../game/levels/index.ts';
 import { ACHIEVEMENTS } from '../../game/progression/achievements.ts';
 import { findChassis, findPaint, starsEarned, totalStars } from '../../game/progression/cosmetics.ts';
@@ -39,6 +40,8 @@ export function MainMenu() {
   const unseen = app.store.unseen().length;
   const unread = app.store.unreadNews().length;
   const achieved = Object.keys(profile.achievements).length;
+  // Mentioned once the player knows the game, and only until today's remix is cleared.
+  const dailyOpen = completedCount(profile) > 0 && profile.daily.lastClear !== dateKey();
   const chassis = findChassis(profile.loadout.chassis);
 
   return (
@@ -87,6 +90,7 @@ export function MainMenu() {
               onClick={() => { app.sound('click'); app.go(item.id); }}>
               <span class="menu-item__index mono">{String(i + 2).padStart(2, '0')}</span>
               <span class="menu-item__label">{item.label}</span>
+              {item.id === 'levels' && dailyOpen && <span class="badge badge--quiet" data-daily>Daily remix</span>}
               {item.id === 'garage' && unseen > 0 && <span class="badge">{unseen} new</span>}
               {item.id === 'updates' && unread > 0 && <span class="badge">{unread > 1 ? `${unread} new` : 'New'}</span>}
               <span class="menu-item__note">{item.note}</span>

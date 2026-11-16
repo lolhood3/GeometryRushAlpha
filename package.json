@@ -1,7 +1,7 @@
 {
   "name": "geometry-rush-v2",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
@@ -9,7 +9,10 @@
     "preview": "vite preview --host 0.0.0.0 --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.ts",
-    "replays": "node scripts/build-replays.ts"
+    "replays": "node scripts/build-replays.ts",
+    "remixes": "node scripts/build-remixes.ts",
+    "level": "node scripts/level.ts",
+    "visual": "node scripts/visual.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -19,6 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "puppeteer-core": "^25.17.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
   }

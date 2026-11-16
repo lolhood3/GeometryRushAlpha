@@ -14,12 +14,22 @@ const BUILDERS: Record<string, () => Level> = {
 };
 
 export const LEVEL_IDS = ['genesis', 'velocity', 'overdrive', 'quantum', 'apex'] as const;
+/** The daily remix. It is a level like any other to play, but it is not one of the tracks: it has no stars, shards to bank or place in the unlock order. */
+export const DAILY_ID = 'daily';
 export type LevelId = (typeof LEVEL_IDS)[number];
 
 const cache = new Map<string, Level>();
+/** Levels that are put together at run time (the daily remix). They are asked for every time, never cached here. */
+const PROVIDERS = new Map<string, () => Level>();
+
+export function registerLevel(id: string, provide: () => Level): void {
+  PROVIDERS.set(id, provide);
+}
 
 /** Levels are compiled on first use and shared (they are immutable at runtime). */
 export function getLevel(id: string): Level {
+  const provide = PROVIDERS.get(id);
+  if (provide) return provide();
   let level = cache.get(id);
   if (!level) {
     const build = BUILDERS[id];

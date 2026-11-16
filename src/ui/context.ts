@@ -14,7 +14,8 @@ export interface AppApi {
   /** Switches menu screens. */
   go: (screen: ScreenId) => void;
   /** Curtain transition into a level. */
-  play: (levelId: string, practice: boolean) => void;
+  /** Starts a level. `section` begins a practice run at that part of the track. */
+  play: (levelId: string, practice: boolean, section?: number) => void;
   /** Curtain transition back to a menu screen. */
   leave: (to: ScreenId) => void;
   sound: (name: SfxName, arg?: number) => void;

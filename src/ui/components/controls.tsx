@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { createPortal } from 'preact/compat';
 import { useEffect, useRef } from 'preact/hooks';
 import { useApp } from '../context.ts';
 import { IconBack } from './icons.tsx';
@@ -214,7 +215,7 @@ export function ScreenFrame({ title, index, onBack, children, aside, wide }: {
   );
 }
 
-const DIALOG_FOCUSABLE = 'button:not([disabled]), input:not([type="hidden"]):not([hidden])';
+const DIALOG_FOCUSABLE = 'button:not([disabled]), input:not([type="hidden"]):not([hidden]), textarea:not([disabled])';
 
 /**
  * Modal dialog. Focus moves into it when it opens, Tab and the arrow keys
@@ -238,6 +239,9 @@ export function Dialog({ title, eyebrow, tone, children, actions, onClose, class
         close.current?.();
         return;
       }
+      // In a text box the arrow keys move the caret, and no key typed there is a shortcut for the screen behind.
+      const typing = e.target instanceof HTMLTextAreaElement;
+      if (typing && e.key !== 'Tab') { e.stopPropagation(); return; }
       const arrow = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
       if (e.key !== 'Tab' && arrow === 0) return;
       const items = Array.from(root.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE)).filter((el) => el.offsetParent !== null);
@@ -256,7 +260,11 @@ export function Dialog({ title, eyebrow, tone, children, actions, onClose, class
       if (before && before.isConnected) before.focus({ preventScroll: true });
     };
   }, []);
-  return (
+  // Drawn at the top of the interface, not where it was asked for: a scrolling pane with a
+  // faded edge (a mask) or a finished animation (a transform) would otherwise clip the dialog
+  // to itself, which on a phone leaves half of it off the screen.
+  const host = typeof document === 'undefined' ? null : document.getElementById('ui');
+  const view = (
     <div class="dialog-scrim" role="dialog" aria-modal="true" aria-label={title}>
       <div class={`dialog cut ${tone ? `dialog--${tone}` : ''} ${cls ?? ''}`} ref={box}>
         <header class="dialog__head">
@@ -268,4 +276,5 @@ export function Dialog({ title, eyebrow, tone, children, actions, onClose, class
       </div>
     </div>
   );
+  return host ? createPortal(view, host) : view;
 }

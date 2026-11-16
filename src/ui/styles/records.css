@@ -291,6 +291,10 @@ button.trk__row:hover .trk__go, button.trk__row:focus-visible .trk__go { opacity
 .feats li.is-done { color: var(--ink); }
 .feats li.is-done svg { color: var(--ok); flex: none; }
 .feats__no { flex: none; width: 12px; height: 1px; background: var(--line-2); }
+.feats li em { margin-left: auto; font-style: normal; font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.feats__head { display: flex; align-items: baseline; justify-content: space-between; font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin: 2px 0 -4px; }
+.feats__head span { letter-spacing: 0; font-size: 13px; color: var(--ink); }
+.feats__head span i { font-style: normal; color: var(--ink-3); }
 .track-detail__note { font-size: 11.5px; line-height: 1.4; color: var(--ink-3); }
 .track-detail__locked { display: flex; align-items: center; gap: 10px; padding: 14px; border: 1px dashed var(--line-2); font-size: 13.5px; color: var(--ink-2); }
 

@@ -31,7 +31,8 @@
 /* ── Pane ────────────────────────────────────────────────────────────────── */
 .set-main { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); }
 .set-pane { min-height: 0; overflow-x: hidden; overflow-y: auto; padding-right: 14px; margin-right: -14px; -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 30px), transparent); scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; overscroll-behavior: contain; touch-action: pan-y; }
-.set-pane__inner { padding-bottom: 68px; animation: set-pane-down 0.3s var(--ease) both; }
+/* Fills backwards only: a transform left behind after the animation would make this box, not the screen, the frame that dialogs opened from a pane are laid out in. */
+.set-pane__inner { padding-bottom: 68px; animation: set-pane-down 0.3s var(--ease) backwards; }
 .set-pane__inner[data-dir='up'] { animation-name: set-pane-up; }
 @keyframes set-pane-down { from { opacity: 0; transform: translate3d(0, 12px, 0); } }
 @keyframes set-pane-up { from { opacity: 0; transform: translate3d(0, -12px, 0); } }
@@ -174,6 +175,11 @@
 .tap-pad:active { background: var(--accent); }
 .tap-pad:active::before { background: color-mix(in srgb, var(--accent) 22%, var(--panel)); }
 .tap-pad.is-done { background: var(--ok); }
+.tap-pad.is-done.is-loose { background: var(--gold); }
+/* The check: the pad lights with each click as the game would now time it. */
+.tap-pad.is-done.is-beat::before { background: color-mix(in srgb, var(--ok) 34%, var(--panel)); }
+.tap-pad.is-done.is-beat .tap-pad__hint, .tap-pad.is-done.is-beat .tap-pad__count small { color: var(--ink); }
+.tap-pad.is-done { transition: none; }
 .tap-pad__count { font-size: 40px; font-weight: 600; line-height: 1; }
 .tap-pad__count small { font-size: 16px; color: var(--ink-3); }
 .tap-pad__dots { display: flex; gap: 5px; }
@@ -184,6 +190,8 @@
 .calib div { display: grid; gap: 2px; padding: 10px; border: 1px solid var(--line); }
 .calib span { font-size: 11px; color: var(--ink-3); }
 .calib b { font-size: 14px; color: var(--ink); font-weight: 500; }
+.calib__advice { min-height: 2.9em; margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.calib__advice.is-warn { color: var(--gold); }
 
 /* ── Flat rail: narrow windows and the pause menu ────────────────────────── */
 .settings--compact { height: auto; grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -247,4 +255,19 @@
   .pause__panel--settings > .eyebrow, .pause__panel--settings > h2 { display: none; }
   .settings--compact .set-pane { max-height: max(130px, calc(100dvh - 196px)); }
   .settings--compact .set-pane__inner { padding-bottom: 8px; }
+}
+
+/* Sync calibration on a phone held sideways: pad on the left, readings beside it, so all of it is on screen at once. */
+@media (max-height: 520px) {
+  .dialog-scrim:has(.dialog--calib) { padding: 10px 20px; }
+  .dialog--calib { width: min(760px, 100%); padding: 12px 18px; gap: 8px; }
+  .dialog--calib .dialog__head { gap: 4px; }
+  .dialog--calib .dialog__body { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 8px 14px; font-size: 12.5px; line-height: 1.4; }
+  .dialog--calib .dialog__body > p:first-child { grid-column: 1 / -1; margin: 0; }
+  .dialog--calib .tap-pad { grid-row: span 2; align-content: center; padding: 10px; gap: 7px; }
+  .dialog--calib .tap-pad__count { font-size: 30px; }
+  .dialog--calib .calib { grid-template-columns: 1fr; gap: 4px; }
+  .dialog--calib .calib div { grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 9px; }
+  .dialog--calib .calib b { font-size: 12.5px; }
+  .dialog--calib .calib__advice { grid-column: 2; min-height: 4.2em; font-size: 11.5px; }
 }

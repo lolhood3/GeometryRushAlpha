@@ -1,5 +1,5 @@
 import { getLevel, LEVEL_IDS } from '../../../game/levels/index.ts';
-import { lockedBehind, streakFeat, trackRows, type TrackRow } from '../../../game/progression/career.ts';
+import { lockedBehind, streakFeat, trackChallenges, trackRows, type TrackRow } from '../../../game/progression/career.ts';
 import { syncPercent, syncRank, type LevelRecord, type Profile } from '../../../game/progression/profile.ts';
 import { Button, Dialog } from '../../components/controls.tsx';
 import { IconArrow, IconCheck, IconLock, IconPlay, IconShard, IconStar } from '../../components/icons.tsx';
@@ -93,14 +93,8 @@ export function TrackDialog({ id, profile: p, onClose, onMove }: {
   const row = trackRows(p).find((x) => x.id === id)!;
   const behind = lockedBehind(p, id);
   const i = (LEVEL_IDS as readonly string[]).indexOf(id);
-  const feats: [boolean, string][] = [
-    [r.completed, 'Cleared in Normal mode'],
-    [r.practiceCompleted, 'Cleared in Practice'],
-    [row.allShards, 'All three shards banked'],
-    [r.bestSync >= 0 && 'SA'.includes(syncRank(r.bestSync)), 'Sync rank A or better'],
-    [row.streakFeat, `Streak of ${streakFeat()} or more`],
-    [row.cleanClear, 'Cleared within three attempts'],
-  ];
+  const challenges = trackChallenges(r);
+  const done = challenges.filter((c) => c.complete).length;
   const go = (practice: boolean) => { app.setFocusLevel(id); app.play(id, practice); };
 
   return (
@@ -140,9 +134,14 @@ export function TrackDialog({ id, profile: p, onClose, onMove }: {
               <div><dt>Clears</dt><dd class="mono">{count(r.completions)}</dd></div>
               <div><dt>Fewest attempts to clear</dt><dd class="mono">{r.fewestAttempts > 0 ? r.fewestAttempts : '—'}</dd></div>
             </dl>
-            <ul class="feats">
-              {feats.map(([done, text]) => (
-                <li key={text} class={done ? 'is-done' : ''}>{done ? <IconCheck size={12} /> : <i class="feats__no" />}{text}</li>
+            <h3 class="feats__head">Challenges <span class="mono">{done}<i>/{challenges.length}</i></span></h3>
+            <ul class="feats" aria-label="Challenges for this track">
+              {challenges.map((c) => (
+                <li key={c.id} class={c.complete ? 'is-done' : ''} data-challenge={c.id} title={c.how}>
+                  {c.complete ? <IconCheck size={12} /> : <i class="feats__no" />}
+                  <span>{c.complete ? c.done : c.goal}</span>
+                  {!c.complete && c.status && <em class="mono">{c.status}</em>}
+                </li>
               ))}
             </ul>
             <p class="track-detail__note">Sync is taken from clears in Normal mode; streak from any Normal attempt. Fewest attempts counts one sitting, from starting the track.</p>
