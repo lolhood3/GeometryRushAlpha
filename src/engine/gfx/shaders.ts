@@ -18,7 +18,10 @@ flat out vec2 v_glow;
 flat out vec4 v_fill;
 flat out vec4 v_line;
 void main() {
-  float pad = a_glow.x + u_px * 1.5;
+  // The quad must reach as far as the glow does. A rounded triangle is larger than its
+  // half extents by its corner radius, so its glow starts that much further out.
+  float grown = a_rs.y > 1.5 && a_rs.y < 2.5 ? a_ps.x : 0.0;
+  float pad = a_glow.x + grown + u_px * 1.5;
   vec2 local = a_corner * (a_size + pad);
   float c = cos(a_rs.x), s = sin(a_rs.x);
   vec2 world = a_pos + vec2(local.x * c - local.y * s, local.x * s + local.y * c);
@@ -112,7 +115,11 @@ void main() {
   float band = stroke > 0.0 ? inside * smoothstep(-stroke - aa, -stroke + aa, d) : 0.0;
   vec3 rgb = mix(fill.rgb, v_line.rgb, band * v_line.a);
   float alpha = mix(fill.a * fillMul, 1.0, band * v_line.a) * inside;
-  float glow = v_glow.y * exp(-max(d, 0.0) / max(v_glow.x, 0.0001) * 3.0) * (1.0 - inside * 0.65);
+  // Glow: an exponential falloff over the glow radius. On its own it never reaches zero: at the
+  // radius, which is where the quad ends, 5% of it is left, and that showed as the outline of the
+  // quad around every glowing shape. The outer half is eased out so nothing is left at the edge.
+  float reach = clamp(max(d, 0.0) / max(v_glow.x, 0.0001), 0.0, 1.0);
+  float glow = v_glow.y * exp(-reach * 3.0) * (1.0 - smoothstep(0.5, 1.0, reach)) * (1.0 - inside * 0.65);
   o = vec4(rgb * alpha + v_line.rgb * glow, alpha);
 }`;
 

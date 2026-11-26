@@ -1,4 +1,5 @@
 import type { RGB } from './color.ts';
+import { ribbonMesh } from './ribbon.ts';
 import { BG_FS, BG_VS, RIBBON_FS, RIBBON_VS, SHAPE_FS, SHAPE_VS } from './shaders.ts';
 
 export const Shape = { Box: 0, Circle: 1, Tri: 2, Saw: 3, Blob: 4, Fade: 5, Block: 6, Hex: 7 } as const;
@@ -245,19 +246,9 @@ export class Renderer {
     if (n < 2) return;
     this.flush();
     const out = this.ribbonData;
-    const max = Math.min(n, MAX_RIBBON_VERTS / 2);
-    let o = 0;
-    for (let i = 0; i < max; i++) {
-      const a = Math.max(0, i - 1) * 4;
-      const b = Math.min(max - 1, i + 1) * 4;
-      let dx = pts[b] - pts[a];
-      let dy = pts[b + 1] - pts[a + 1];
-      const len = Math.hypot(dx, dy) || 1;
-      dx /= len; dy /= len;
-      const x = pts[i * 4], y = pts[i * 4 + 1], w = pts[i * 4 + 2], al = pts[i * 4 + 3];
-      out[o++] = x - dy * w; out[o++] = y + dx * w; out[o++] = -1; out[o++] = al;
-      out[o++] = x + dy * w; out[o++] = y - dx * w; out[o++] = 1; out[o++] = al;
-    }
+    // Six vertices for every piece between two points.
+    const max = Math.min(n, Math.floor(MAX_RIBBON_VERTS / 6) + 1);
+    const o = ribbonMesh(pts, max, out);
     const gl = this.gl;
     gl.useProgram(this.ribbonProg);
     gl.bindVertexArray(this.ribbonVao);
@@ -266,7 +257,7 @@ export class Renderer {
     gl.uniform4f(this.u.r_cam, this.camX, this.camY, (2 * this.camScale) / this.width, (2 * this.camScale) / this.height);
     gl.uniform4f(this.u.r_color, color[0], color[1], color[2], alpha);
     gl.uniform1f(this.u.r_core, core);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, max * 2);
+    gl.drawArrays(gl.TRIANGLES, 0, o / 4);
   }
 
   end(): void {

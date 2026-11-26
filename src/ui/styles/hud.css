@@ -223,6 +223,8 @@
   .pause__actions .btn { min-width: 0; min-height: 40px; padding: 4px 12px; font-size: 11px; white-space: normal; text-align: left; line-height: 1.25; }
   .pause__actions .btn--primary { grid-column: 1 / -1; min-height: 48px; padding: 4px 16px; font-size: 13px; }
   .pause__actions .pause__wide { grid-column: 1 / -1; }
+  /* Alone on the last row, Exit takes the whole row like the buttons above it. */
+  .pause__actions .pause__exit:last-child { grid-column: 1 / -1; }
   .pause__parts .btn { justify-self: stretch; justify-content: flex-start; padding-inline: 10px; letter-spacing: 0.06em; }
   .next__row { padding: 6px 12px; }
   .next__text i { display: none; }

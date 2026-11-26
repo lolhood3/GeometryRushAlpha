@@ -10,6 +10,25 @@ import type { Release } from './types.ts';
  */
 export const RELEASES: readonly Release[] = [
   {
+    id: 'v2-5-2',
+    version: '2.5.2',
+    label: 'Hotfix 04',
+    title: 'Clean Light',
+    date: '2026-11-16',
+    category: 'Hotfix',
+    era: 'v2',
+    description: 'Two visual faults: stray edges and streaks in the light around the player, and a pause menu button that had lost its frame.',
+    features: [],
+    improvements: [
+      'A trail keeps its width through a sharp turn instead of pinching at the corner',
+    ],
+    fixes: [
+      'The glow around the player no longer ends in a faint square that turned with the cube. Every glow in the game now fades out fully before the edge of the area it is drawn in',
+      'A thin bright line no longer cuts across the trail where the cube lands, takes off or the wave turns. The trail was folding over itself at a sharp bend and the overlap was drawn twice',
+      'Exit to levels in the pause menu is a framed button again, the same as Restart and Settings',
+    ],
+  },
+  {
     id: 'v2-5-1',
     version: '2.5.1',
     label: 'Hotfix 03',
