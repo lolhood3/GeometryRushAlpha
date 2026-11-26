@@ -54,7 +54,9 @@ function PauseMenu() {
               <IconFlag size={15} /> {st.practice ? 'Switch to Normal' : 'Switch to Practice'}
             </Button>
             <Button onClick={() => setSettings(true)}>Settings</Button>
-            <Button variant="quiet" sound="back" onClick={() => app.leave('levels')}>Exit to levels</Button>
+            {/* A standard button like Restart and Settings. The "quiet" variant has no container until
+                it is hovered, which left this one looking like loose text in a column of buttons. */}
+            <Button class="pause__exit" sound="back" onClick={() => app.leave('levels')}>Exit to levels</Button>
             {st.coach && <Button variant="quiet" onClick={() => app.game.endIntro()}>Skip the intro</Button>}
           </div>
         )}
